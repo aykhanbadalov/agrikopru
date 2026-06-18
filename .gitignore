@@ -4,3 +4,4 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+services/scoring-engine/training/model.joblib
