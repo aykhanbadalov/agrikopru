@@ -36,7 +36,10 @@ export default function FarmerConfirmScreen() {
         { text: 'Tamam', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      if (err.status === 403) {
+      if (err.status === 429) {
+        Alert.alert('Hata', 'Çok fazla hatalı deneme. Lütfen 15 dakika bekleyin.');
+        setPin('');
+      } else if (err.status === 403) {
         Alert.alert('Hata', 'Yanlış PIN.');
         setPin('');
       } else if (err.status === 404) {
