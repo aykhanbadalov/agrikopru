@@ -5,8 +5,12 @@ CREATE TABLE farmers (
     full_name          VARCHAR(255) NOT NULL,
     phone              VARCHAR(20)  UNIQUE NOT NULL,
     national_id        VARCHAR(20),
-    cooperative_member BOOLEAN      DEFAULT FALSE,
-    pin_hash           VARCHAR(60)  DEFAULT NULL,
+    cooperative_member    BOOLEAN      DEFAULT FALSE,
+    farming_history_years INTEGER,
+    tarsim_history_score  NUMERIC(4,2),
+    fertilizer_purchases  INTEGER,
+    climate_risk_score    NUMERIC(4,2),
+    pin_hash              VARCHAR(60)  DEFAULT NULL,
     created_at         TIMESTAMPTZ  DEFAULT NOW(),
     updated_at         TIMESTAMPTZ  DEFAULT NOW()
 );

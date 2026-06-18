@@ -16,12 +16,36 @@ const SCORE_FIELDS = [
   'region_profitability_index',
 ];
 
+// farmers cədvəlindən oxunan/yazılan profil faktörləri
+const DB_PROFILE_FIELDS = [
+  'cooperative_member',
+  'farming_history_years',
+  'tarsim_history_score',
+  'fertilizer_purchases',
+  'climate_risk_score',
+];
+
 router.post('/', async (req, res, next) => {
   const { farmer_id, ...rest } = req.body;
 
   const payload = { farmer_id };
   for (const field of SCORE_FIELDS) {
     if (rest[field] !== undefined) payload[field] = rest[field];
+  }
+
+  // DB-dən farmer profil faktörlərini al
+  let dbFarmer = {};
+  try {
+    const { rows } = await db.query(
+      `SELECT cooperative_member, farming_history_years,
+              tarsim_history_score, fertilizer_purchases, climate_risk_score
+       FROM farmers WHERE id = $1`,
+      [farmer_id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
+    dbFarmer = rows[0];
+  } catch (err) {
+    return next(err);
   }
 
   // DB-dən parsel məlumatını al
@@ -31,14 +55,33 @@ router.post('/', async (req, res, next) => {
       [farmer_id]
     );
     if (parcelResult.rows.length > 0) {
-      const parcel = parcelResult.rows[0];
-      if (!payload.land_size_ha) payload.land_size_ha = parcel.land_size_ha;
+      if (!payload.land_size_ha) payload.land_size_ha = parcelResult.rows[0].land_size_ha;
     }
   } catch (err) {
     return next(err);
   }
-  // region_profitability_index DB-də yoxdur, default 1.0 istifadə et
+
+  // Merge: body > DB (body-dən gəlməyən faktörü DB-dən götür)
+  for (const field of DB_PROFILE_FIELDS) {
+    if (payload[field] === undefined && dbFarmer[field] !== null && dbFarmer[field] !== undefined) {
+      payload[field] = dbFarmer[field];
+    }
+  }
+
+  // region_profitability_index DB-də yoxdur, default 1.0
   if (!payload.region_profitability_index) payload.region_profitability_index = 1.0;
+
+  // Body-dən gələn profil faktörlərini farmers cədvəlinə yaz
+  try {
+    const updatable = DB_PROFILE_FIELDS.filter(f => rest[f] !== undefined);
+    if (updatable.length > 0) {
+      const sets = updatable.map((f, i) => `${f} = $${i + 2}`).join(', ');
+      const vals = updatable.map(f => rest[f]);
+      await db.query(`UPDATE farmers SET ${sets} WHERE id = $1`, [farmer_id, ...vals]);
+    }
+  } catch (err) {
+    return next(err);
+  }
 
   let engineRes;
   try {
