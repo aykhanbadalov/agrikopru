@@ -6,3 +6,7 @@ joblib
 pandas
 numpy
 pydantic
+pytesseract
+Pillow
+pdf2image
+shap

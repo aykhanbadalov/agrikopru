@@ -6,6 +6,7 @@ export type ScoreResult = {
   credit_limit_tl: number | null;
   model_version: string;
   repayment_probability: number;
+  feature_contributions: Record<string, number>;
 };
 
 export type Farmer = {

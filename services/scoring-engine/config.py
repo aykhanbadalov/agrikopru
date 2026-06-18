@@ -17,6 +17,10 @@ MODEL_PATH: Path = BASE_DIR / "training" / "model.joblib"
 METRICS_PATH: Path = BASE_DIR / "training" / "metrics.json"
 DATASET_PATH: Path = BASE_DIR / "data" / "synthetic_dataset.csv"
 
+OCR_CONFIDENCE_THRESHOLD: float = 0.6
+OCR_LANG: str = "tur"
+OCR_MAX_FILE_MB: int = 10
+
 SYNTHETIC_NOTE: str = (
     "Scores based on synthetic training data — not real historical repayment records"
 )

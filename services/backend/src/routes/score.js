@@ -24,6 +24,22 @@ router.post('/', async (req, res, next) => {
     if (rest[field] !== undefined) payload[field] = rest[field];
   }
 
+  // DB-dən parsel məlumatını al
+  try {
+    const parcelResult = await db.query(
+      'SELECT land_size_ha FROM parcels WHERE farmer_id = $1 LIMIT 1',
+      [farmer_id]
+    );
+    if (parcelResult.rows.length > 0) {
+      const parcel = parcelResult.rows[0];
+      if (!payload.land_size_ha) payload.land_size_ha = parcel.land_size_ha;
+    }
+  } catch (err) {
+    return next(err);
+  }
+  // region_profitability_index DB-də yoxdur, default 1.0 istifadə et
+  if (!payload.region_profitability_index) payload.region_profitability_index = 1.0;
+
   let engineRes;
   try {
     engineRes = await fetch(`${SCORING_ENGINE_URL}/score`, {

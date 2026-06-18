@@ -4,6 +4,37 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import ScoreBadge from '../../components/ScoreBadge';
 import { Farmer, getFarmer } from '../../services/api';
 
+const FEATURE_LABELS: Record<string, string> = {
+  land_size_ha:          'Arazi Büyüklüğü',
+  farming_history_years: 'Çiftçilik Geçmişi',
+  cooperative_member:    'Kooperatif Üyeliği',
+  tarsim_history_score:  'Sigorta Geçmişi',
+  fertilizer_purchases:  'Gübre Alımı',
+  climate_risk_score:    'İklim Riski',
+};
+
+function ShapBar({ label, value }: { label: string; value: number }) {
+  const pct = Math.abs(value);
+  const positive = value >= 0;
+  return (
+    <View style={shap.row}>
+      <Text style={shap.label}>{label}</Text>
+      <View style={shap.track}>
+        <View
+          style={[
+            shap.fill,
+            { width: `${Math.round(pct * 100)}%` },
+            positive ? shap.pos : shap.neg,
+          ]}
+        />
+      </View>
+      <Text style={[shap.val, positive ? shap.posText : shap.negText]}>
+        {positive ? '+' : ''}{value.toFixed(2)}
+      </Text>
+    </View>
+  );
+}
+
 export default function KrediAnaliziScreen() {
   const { farmerId } = useLocalSearchParams<{ farmerId?: string }>();
   const [farmer, setFarmer] = useState<Farmer | null>(null);
@@ -54,6 +85,22 @@ export default function KrediAnaliziScreen() {
                 : 'Bilgi yok'
             }
           />
+
+          {s.feature_contributions && (
+            <View style={styles.shapSection}>
+              <Text style={styles.shapTitle}>Skor Faktörleri</Text>
+              {Object.entries(s.feature_contributions)
+                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                .map(([key, val]) => (
+                  <ShapBar
+                    key={key}
+                    label={FEATURE_LABELS[key] ?? key}
+                    value={val}
+                  />
+                ))}
+            </View>
+          )}
+
           <View style={styles.syntheticNote}>
             <Text style={styles.syntheticText}>SENTETİK MODEL V1 — Gerçek veri değildir.</Text>
           </View>
@@ -97,10 +144,27 @@ const styles = StyleSheet.create({
   rowWrap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   rowLabel: { fontSize: 15, color: '#374151', fontWeight: '500' },
   rowValue: { fontSize: 15, color: '#1f2937', fontWeight: '700' },
+  shapSection: { marginTop: 8, marginBottom: 12 },
+  shapTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 10 },
   syntheticNote: { backgroundColor: '#fef3c7', borderRadius: 8, padding: 10, marginTop: 4 },
   syntheticText: { color: '#92400e', fontSize: 13, fontWeight: '600' },
   btn: {
     backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center',
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
+
+const shap = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  label: { fontSize: 12, color: '#374151', width: 110 },
+  track: {
+    flex: 1, height: 10, backgroundColor: '#e5e7eb',
+    borderRadius: 5, marginHorizontal: 8, overflow: 'hidden',
+  },
+  fill: { height: '100%', borderRadius: 5 },
+  pos: { backgroundColor: '#22c55e' },
+  neg: { backgroundColor: '#ef4444' },
+  val: { fontSize: 12, fontWeight: '700', width: 40, textAlign: 'right' },
+  posText: { color: '#16a34a' },
+  negText: { color: '#ef4444' },
 });

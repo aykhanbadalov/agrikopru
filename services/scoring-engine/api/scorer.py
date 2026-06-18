@@ -1,5 +1,6 @@
 import joblib
 import numpy as np
+import shap
 
 from config import (
     BASE_COEFFICIENT_TL_HA,
@@ -23,16 +24,18 @@ FEATURES = [
 ]
 
 _model = None
+_explainer = None
 
 
 def load_model():
-    global _model
+    global _model, _explainer
     if not MODEL_PATH.exists():
         raise FileNotFoundError(
             f"Model tapılmadı: {MODEL_PATH}. "
             "Əvvəlcə `python training/train.py` işlət."
         )
     _model = joblib.load(MODEL_PATH)
+    _explainer = shap.TreeExplainer(_model)
 
 
 def get_model():
@@ -73,11 +76,16 @@ def score_request(req: ScoreRequest) -> ScoreResponse:
             2,
         )
 
-    importances = model.feature_importances_
-    total = importances.sum() or 1.0
+    raw = _explainer.shap_values(X)
+    # Binary classifier: list qaytarırsa → [class0, class1]; array → birbaşa
+    if isinstance(raw, list):
+        shap_vals = raw[1][0]   # class 1 ("repaid"), birinci nümunə
+    else:
+        shap_vals = raw[0]
+    total_abs = sum(abs(v) for v in shap_vals) or 1.0
     feature_contributions = {
-        name: round(float(imp / total), 4)
-        for name, imp in zip(FEATURES, importances)
+        name: round(float(v / total_abs), 4)
+        for name, v in zip(FEATURES, shap_vals)
     }
 
     return ScoreResponse(
