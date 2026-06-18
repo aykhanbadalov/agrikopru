@@ -1,0 +1,11 @@
+{
+  "model_version": "SYNTHETIC_MODEL_V1",
+  "data_note": "Scores based on synthetic training data — not real historical repayment records",
+  "test_size": 0.2,
+  "n_test": 1000,
+  "roc_auc": 0.911,
+  "precision": 0.815,
+  "recall": 0.8263,
+  "f1": 0.8206,
+  "best_iteration": 89
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriKöprü — USSD Simülatörü</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="phone">
+
+    <!-- SIM nömrəsi -->
+    <div class="sim-bar">
+      SIM: <span id="sim-phone-display">+905001234567</span>
+      <br>
+      <input
+        id="sim-phone"
+        type="text"
+        value="+905001234567"
+        style="
+          background:transparent; border:none; border-bottom:1px solid #444;
+          color:#aaa; font-size:11px; width:130px; text-align:center;
+          margin-top:4px; outline:none;
+        "
+        placeholder="SIM numarası"
+      />
+    </div>
+
+    <!-- Ekran -->
+    <div class="screen">
+      <div class="screen-indicator off" id="screen-indicator"></div>
+      <div class="screen-text" id="screen-text"></div>
+    </div>
+
+    <!-- Yığım çubuğu -->
+    <div class="dial-bar" id="dial-bar">&nbsp;</div>
+
+    <!-- Klaviatura -->
+    <div class="keypad">
+      <button class="key" data-key="1">1<sub>   </sub></button>
+      <button class="key" data-key="2">2<sub>ABC</sub></button>
+      <button class="key" data-key="3">3<sub>DEF</sub></button>
+      <button class="key" data-key="4">4<sub>GHI</sub></button>
+      <button class="key" data-key="5">5<sub>JKL</sub></button>
+      <button class="key" data-key="6">6<sub>MNO</sub></button>
+      <button class="key" data-key="7">7<sub>PQRS</sub></button>
+      <button class="key" data-key="8">8<sub>TUV</sub></button>
+      <button class="key" data-key="9">9<sub>WXYZ</sub></button>
+      <button class="key key-star" data-key="*">*</button>
+      <button class="key" data-key="0">0<sub>   </sub></button>
+      <button class="key key-hash" data-key="#">#</button>
+    </div>
+
+    <!-- Zəng / Bitir -->
+    <div class="action-row">
+      <button class="btn-call" id="btn-call">&#9742;</button>
+      <button class="btn-end"  id="btn-end">&#10005;</button>
+    </div>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script src="ussd.js"></script>
+</body>
+</html>

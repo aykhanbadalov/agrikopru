@@ -1,0 +1,23 @@
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent
+
+# Biznes tərəfi təsdiqləyənə qədər dəyişdirilməməlidir
+BASE_COEFFICIENT_TL_HA: float = 1000.0
+
+SCORE_MIN: int = 0
+SCORE_MAX: int = 1000
+REPAYMENT_THRESHOLD: float = 0.50
+
+# score >= LOW_THRESHOLD → LOW risk, >= MEDIUM_THRESHOLD → MEDIUM, else HIGH
+RISK_BAND_LOW: int = 700
+RISK_BAND_MEDIUM: int = 400
+
+MODEL_PATH: Path = BASE_DIR / "training" / "model.joblib"
+METRICS_PATH: Path = BASE_DIR / "training" / "metrics.json"
+DATASET_PATH: Path = BASE_DIR / "data" / "synthetic_dataset.csv"
+
+SYNTHETIC_NOTE: str = (
+    "Scores based on synthetic training data — not real historical repayment records"
+)
+MODEL_VERSION: str = "SYNTHETIC_MODEL_V1"
