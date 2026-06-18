@@ -45,6 +45,22 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+router.get('/:id/score-history', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT score, risk_band, created_at
+       FROM credit_scores
+       WHERE farmer_id = $1
+       ORDER BY created_at ASC
+       LIMIT 10`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { rows: farmers } = await db.query(

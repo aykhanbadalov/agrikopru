@@ -1,8 +1,17 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Circle, Line, Polyline, Svg, Text as SvgText } from 'react-native-svg';
 import ScoreBadge from '../../components/ScoreBadge';
-import { Farmer, getFarmer } from '../../services/api';
+import { Farmer, ScoreHistoryPoint, getFarmer, getScoreHistory } from '../../services/api';
 
 const FEATURE_LABELS: Record<string, string> = {
   land_size_ha:          'Arazi Büyüklüğü',
@@ -12,6 +21,62 @@ const FEATURE_LABELS: Record<string, string> = {
   fertilizer_purchases:  'Gübre Alımı',
   climate_risk_score:    'İklim Riski',
 };
+
+const BAND_COLOR: Record<string, string> = {
+  LOW: '#22c55e',
+  MEDIUM: '#eab308',
+  HIGH: '#ef4444',
+};
+
+const CHART_H = 120;
+const PAD = { top: 10, bottom: 28, left: 24, right: 24 };
+
+function ScoreChart({ points }: { points: ScoreHistoryPoint[] }) {
+  if (points.length < 2) {
+    return <Text style={styles.noHistory}>Henüz yeterli geçmiş yok.</Text>;
+  }
+
+  const W = Dimensions.get('window').width - 64;
+  const xStep = (W - PAD.left - PAD.right) / (points.length - 1);
+  const yRange = CHART_H - PAD.top - PAD.bottom;
+
+  const toX = (i: number) => PAD.left + i * xStep;
+  const toY = (score: number) => PAD.top + yRange * (1 - score / 1000);
+
+  const polyPoints = points.map((p, i) => `${toX(i)},${toY(p.score)}`).join(' ');
+
+  return (
+    <Svg width={W} height={CHART_H}>
+      {[0, 500, 1000].map((v) => (
+        <Line
+          key={v}
+          x1={PAD.left} y1={toY(v)}
+          x2={W - PAD.right} y2={toY(v)}
+          stroke="#e5e7eb" strokeWidth={1} strokeDasharray="4,3"
+        />
+      ))}
+      <Polyline points={polyPoints} fill="none" stroke="#6b7280" strokeWidth={1.5} />
+      {points.map((p, i) => (
+        <Circle
+          key={i}
+          cx={toX(i)} cy={toY(p.score)} r={5}
+          fill={BAND_COLOR[p.risk_band] ?? '#9ca3af'}
+        />
+      ))}
+      {points.map((p, i) => {
+        const d = new Date(p.created_at);
+        const label = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return (
+          <SvgText
+            key={i}
+            x={toX(i)} y={CHART_H - 4}
+            fontSize={9} fill="#9ca3af" textAnchor="middle"
+          >{label}</SvgText>
+        );
+      })}
+    </Svg>
+  );
+}
 
 function ShapBar({ label, value }: { label: string; value: number }) {
   const pct = Math.abs(value);
@@ -40,6 +105,7 @@ export default function KrediAnaliziScreen() {
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<ScoreHistoryPoint[]>([]);
 
   useEffect(() => {
     if (!farmerId) return;
@@ -48,6 +114,11 @@ export default function KrediAnaliziScreen() {
       .then(setFarmer)
       .catch(() => setError('Çiftçi yüklenemedi.'))
       .finally(() => setLoading(false));
+  }, [farmerId]);
+
+  useEffect(() => {
+    if (!farmerId) return;
+    getScoreHistory(farmerId).then(setHistory).catch(() => {});
   }, [farmerId]);
 
   if (!farmerId) {
@@ -101,6 +172,13 @@ export default function KrediAnaliziScreen() {
             </View>
           )}
 
+          {history.length > 0 && (
+            <View style={styles.historySection}>
+              <Text style={styles.historyTitle}>Skor Geçmişi</Text>
+              <ScoreChart points={history} />
+            </View>
+          )}
+
           <View style={styles.syntheticNote}>
             <Text style={styles.syntheticText}>SENTETİK MODEL V1 — Gerçek veri değildir.</Text>
           </View>
@@ -146,6 +224,9 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 15, color: '#1f2937', fontWeight: '700' },
   shapSection: { marginTop: 8, marginBottom: 12 },
   shapTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 10 },
+  historySection: { marginTop: 8, marginBottom: 12 },
+  historyTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 8 },
+  noHistory: { fontSize: 13, color: '#9ca3af', marginBottom: 12 },
   syntheticNote: { backgroundColor: '#fef3c7', borderRadius: 8, padding: 10, marginTop: 4 },
   syntheticText: { color: '#92400e', fontSize: 13, fontWeight: '600' },
   btn: {

@@ -87,3 +87,13 @@ export function confirmContract(
     body: JSON.stringify({ farmer_id, pin }),
   });
 }
+
+export type ScoreHistoryPoint = {
+  score: number;
+  risk_band: 'LOW' | 'MEDIUM' | 'HIGH';
+  created_at: string;
+};
+
+export function getScoreHistory(farmerId: string): Promise<ScoreHistoryPoint[]> {
+  return apiFetch<ScoreHistoryPoint[]>(`/api/farmers/${farmerId}/score-history`);
+}
