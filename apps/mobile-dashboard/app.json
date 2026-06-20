@@ -9,7 +9,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mobile-dashboard"
+      "bundleIdentifier": "com.anonymous.mobile-dashboard",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "ÇKS belgesi yüklemek için galeri erişimi gereklidir.",
+        "NSCameraUsageDescription": "ÇKS belgesi fotoğraflamak için kamera erişimi gereklidir."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,14 +22,17 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.mobiledashboard"
     },
     "web": {
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-document-picker",
+      "expo-image-picker"
     ]
   }
 }

@@ -82,7 +82,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 router.put('/:id', async (req, res, next) => {
-  const { full_name, phone, national_id, cooperative_member } = req.body;
+  const { full_name, phone, national_id, cooperative_member, land_size_ha } = req.body;
   try {
     const { rows } = await db.query(
       `UPDATE farmers
@@ -92,6 +92,22 @@ router.put('/:id', async (req, res, next) => {
       [full_name, phone, national_id || null, cooperative_member ?? false, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
+
+    if (land_size_ha !== undefined) {
+      const { rows: existing } = await db.query(
+        'SELECT id FROM parcels WHERE farmer_id = $1 LIMIT 1',
+        [req.params.id]
+      );
+      if (existing.length > 0) {
+        await db.query('UPDATE parcels SET land_size_ha = $1 WHERE id = $2', [land_size_ha, existing[0].id]);
+      } else {
+        await db.query(
+          "INSERT INTO parcels (farmer_id, land_size_ha, parcel_code) VALUES ($1, $2, 'OCR-' || LEFT($1::text, 8))",
+          [req.params.id, land_size_ha]
+        );
+      }
+    }
+
     res.json(rows[0]);
   } catch (err) {
     next(err);

@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,24 +9,30 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ContractStatusBadge from '../../components/ContractStatusBadge';
-import { Contract, getContracts } from '../../services/api';
+import ContractStatusBadge from '../../../components/ContractStatusBadge';
+import { Contract, getContracts } from '../../../services/api';
 
-export default function FarmerContractsScreen() {
-  const { farmerId } = useLocalSearchParams<{ farmerId: string }>();
+export default function SozlesmelerimScreen() {
+  const [farmerId, setFarmerId] = useState<string | null>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function load() {
+  useEffect(() => {
+    AsyncStorage.getItem('currentFarmer').then((raw) => {
+      if (!raw) { router.replace('/farmer/login'); return; }
+      setFarmerId(JSON.parse(raw).id);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!farmerId) return;
     setLoading(true);
     getContracts({ farmer_id: farmerId })
       .then(setContracts)
       .catch(() => setError('Sözleşmeler yüklenemedi.'))
       .finally(() => setLoading(false));
-  }
-
-  useEffect(() => { load(); }, []);
+  }, [farmerId]);
 
   if (loading) return <View style={styles.center}><ActivityIndicator color="#16a34a" size="large" /></View>;
   if (error) return <View style={styles.center}><Text style={styles.error}>{error}</Text></View>;

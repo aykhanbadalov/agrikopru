@@ -1,11 +1,31 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
-import ScoreBadge from '../../components/ScoreBadge';
-import { Farmer } from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import ScoreBadge from '../../../components/ScoreBadge';
+import { Farmer } from '../../../services/api';
 
-export default function FarmerDashboardScreen() {
-  const { farmerJson } = useLocalSearchParams<{ farmerJson: string }>();
-  const farmer: Farmer = JSON.parse(farmerJson);
+export default function PanelimScreen() {
+  const [farmer, setFarmer] = useState<Farmer | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('currentFarmer').then((raw) => {
+      if (!raw) { router.replace('/farmer/login'); return; }
+      setFarmer(JSON.parse(raw));
+    });
+  }, []);
+
+  if (!farmer) {
+    return <View style={styles.center}><ActivityIndicator size="large" color="#16a34a" /></View>;
+  }
+
   const s = farmer.latest_score;
 
   return (
@@ -43,12 +63,7 @@ export default function FarmerDashboardScreen() {
 
       <TouchableOpacity
         style={styles.btn}
-        onPress={() =>
-          router.navigate({
-            pathname: '/farmer/contracts',
-            params: { farmerId: farmer.id },
-          })
-        }
+        onPress={() => router.navigate('/farmer/(tabs)/sozlesmelerim')}
       >
         <Text style={styles.btnText}>Sözleşme Tekliflerini Gör</Text>
       </TouchableOpacity>
@@ -59,6 +74,7 @@ export default function FarmerDashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content: { padding: 20 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   welcome: { fontSize: 16, color: '#6b7280', marginBottom: 2 },
   name: { fontSize: 24, fontWeight: '800', color: '#1f2937', marginBottom: 20 },
   noScoreBox: {

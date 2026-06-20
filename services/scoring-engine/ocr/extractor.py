@@ -16,11 +16,27 @@ except ImportError as exc:
         "`pip install pytesseract Pillow` ilə quraşdırın."
     ) from exc
 
+try:
+    import cv2
+    import numpy as np
+    _CV2_AVAILABLE = True
+except ImportError:
+    _CV2_AVAILABLE = False
+
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import OCR_CONFIDENCE_THRESHOLD, OCR_LANG
 
-ALLOWED_MIME = {"image/jpeg", "image/png", "application/pdf"}
+def _detect_mime(data: bytes) -> Optional[str]:
+    if data[:3] == b'\xff\xd8\xff':
+        return "image/jpeg"
+    if data[:4] == b'\x89PNG':
+        return "image/png"
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return "image/webp"
+    if data[:4] == b'%PDF':
+        return "application/pdf"
+    return None
 
 # Hektar regex-ləri: "12,50 Ha", "Alan: 8.75 ha"
 _HA_PATTERNS = [
@@ -28,9 +44,16 @@ _HA_PATTERNS = [
     re.compile(r'[Aa]lan\s*[:=]\s*(\d+[.,]\d+)'),
 ]
 
-# Dekar regex-ləri: "12,50 Dekar" → × 0.1 → ha
+# Dekar regex-ləri: "12,50 Dekar" → _parse_float → × 0.1 → ha
 _DEKAR_PATTERNS = [
     re.compile(r'(\d+[.,]\d+)\s*[Dd]ekar'),
+]
+
+# (da) vahidli dekar pattern-ləri: nöqtə HƏMİŞƏ onluq ayırıcıdır
+# (bir parsel üçün dekar dəyəri heç vaxt 1000-dən böyük olmur)
+_DEKAR_DA_PATTERNS = [
+    re.compile(r'Toplam\s+Kullan[ıi]lan\s+Alan\s*\(da\)\s*:\s*([\d.]+)'),
+    re.compile(r'TOPLAM\s+([\d.]+)'),
 ]
 
 # Metrekare regex-ləri: "17.500 metrekare" → nöqtə min ayırıcı → /10000 → ha
@@ -44,6 +67,9 @@ _PARCEL_PATTERNS = [
     re.compile(r'[Pp]arsel\s*[Nn]o\s*[:=]?\s*(\d+)'),
     re.compile(r'[Aa]da\s*/\s*[Pp]arsel\s*[:=]?\s*(\d+/\d+)'),
 ]
+
+# Yalnız rəqəm saxlayan xana üçün pattern (ha dəyəri kimi oxuna bilər)
+_NUMERIC_CELL = re.compile(r'^[\d.,\s]+$')
 
 
 def _parse_float(s: str) -> float:
@@ -63,6 +89,11 @@ def _extract_land_size(text: str) -> Optional[float]:
         m = pat.search(text)
         if m:
             return round(_parse_float(m.group(1)) * 0.1, 4)
+    for pat in _DEKAR_DA_PATTERNS:
+        m = pat.search(text)
+        if m:
+            # Nöqtəni vergüllə əvəz et: "209.112" → "209,112" → 209.112 float
+            return round(_parse_float(m.group(1).replace('.', ',')) * 0.1, 4)
     for pat in _METREKARE_PATTERNS:
         m = pat.search(text)
         if m:
@@ -77,6 +108,87 @@ def _extract_parcel_no(text: str) -> Optional[str]:
         m = pat.search(text)
         if m:
             return m.group(1)
+    return None
+
+
+def _extract_from_table(pil_img: "Image.Image") -> Optional[float]:
+    """OpenCV ilə cədvəl xanalarını aşkarlayıb TOPLAM sütunundan land_size_ha oxu."""
+    if not _CV2_AVAILABLE:
+        return None
+
+    img_arr = np.array(pil_img)
+    h, w = img_arr.shape[:2]
+
+    # Binary threshold (tərsinə çevir: xətlər ağ, fon qara)
+    _, binary = cv2.threshold(img_arr, 150, 255, cv2.THRESH_BINARY_INV)
+
+    # Horizontal xətlər
+    kernel_h = cv2.getStructuringElement(cv2.MORPH_RECT, (w // 30, 1))
+    h_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel_h)
+
+    # Vertical xətlər
+    kernel_v = cv2.getStructuringElement(cv2.MORPH_RECT, (1, h // 30))
+    v_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel_v)
+
+    # Cədvəl maskası = h + v xətlər, boşluqları bağla
+    table_mask = cv2.add(h_lines, v_lines)
+    dilate_k = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    table_mask = cv2.dilate(table_mask, dilate_k, iterations=3)
+
+    contours, _ = cv2.findContours(table_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Hücrə siyahısı: (cx, cy, cell_w, cell_h, text)
+    cells = []
+    for cnt in contours:
+        x, y, cw, ch = cv2.boundingRect(cnt)
+        if cw * ch < 500:  # noise filteri
+            continue
+
+        # ROI — 4px padding
+        pad = 4
+        x1 = max(x - pad, 0)
+        y1 = max(y - pad, 0)
+        x2 = min(x + cw + pad, w)
+        y2 = min(y + ch + pad, h)
+        roi = img_arr[y1:y2, x1:x2]
+        roi_pil = Image.fromarray(roi)
+
+        cell_text = pytesseract.image_to_string(
+            roi_pil, lang=OCR_LANG, config='--psm 6 --oem 3'
+        ).strip()
+        cells.append((x, y, cw, ch, cell_text))
+
+    # (y, x) üzrə sırala → cərgə-cərgə oxu
+    cells.sort(key=lambda c: (c[1], c[0]))
+
+    # "TOPLAM" / "GENEL TOPLAM" xanasını tap
+    for i, (cx, cy, cw, ch, text) in enumerate(cells):
+        upper = text.upper().replace('\n', ' ').strip()
+        if 'TOPLAM' not in upper:
+            continue
+
+        # Eyni cərgədə sağ tərəfdəki xanaları axtar
+        half_h = ch / 2
+        for nx, ny, nw, nh, ntext in cells:
+            if nx <= cx:
+                continue
+            if abs(ny - cy) > half_h:
+                continue
+            # Rəqəmli xanamı?
+            clean = ntext.strip().replace('\n', ' ')
+            if not clean:
+                continue
+            # Sadə rəqəm yoxlaması
+            candidate = re.sub(r'\s+', '', clean)
+            if re.fullmatch(r'[\d.,]+', candidate):
+                try:
+                    val = _parse_float(candidate)
+                    # Məntiqli aralıq: 0.01 ha – 10000 ha
+                    if 0.01 <= val <= 10000:
+                        return round(val, 4)
+                except ValueError:
+                    continue
+
     return None
 
 
@@ -106,14 +218,14 @@ def _preprocess(img: Image.Image) -> Image.Image:
 def extract_from_cks(data: bytes, content_type: Optional[str]) -> "CKSExtractResponse":
     from ocr.schemas import CKSExtractResponse
 
-    if content_type not in ALLOWED_MIME:
+    detected = _detect_mime(data)
+    if detected is None:
         raise HTTPException(
             415,
-            f"Dəstəklənməyən fayl tipi: {content_type}. "
-            "JPG, PNG və ya PDF yükləyin.",
+            "Dəstəklənməyən fayl tipi. JPG, PNG, WebP və ya PDF yükləyin.",
         )
 
-    img = _preprocess(_to_pil(data, content_type))
+    img = _preprocess(_to_pil(data, detected))
 
     # Söz səviyyəsində etibarlılıq
     import pandas as pd
@@ -125,6 +237,12 @@ def extract_from_cks(data: bytes, content_type: Optional[str]) -> "CKSExtractRes
 
     land_size_ha = _extract_land_size(raw_text)
     parcel_no = _extract_parcel_no(raw_text)
+
+    # OpenCV cədvəl aşkarlaması — nəticə tapılırsa regex nəticəsini üstələyir
+    if _CV2_AVAILABLE:
+        cv_result = _extract_from_table(img)
+        if cv_result is not None:
+            land_size_ha = cv_result
 
     warning = None
     if confidence < OCR_CONFIDENCE_THRESHOLD:

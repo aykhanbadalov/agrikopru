@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -25,7 +26,8 @@ export default function FarmerLoginScreen() {
     setLoading(true);
     try {
       const farmer: Farmer = await getFarmerByPhone(phone.trim());
-      router.navigate({ pathname: '/farmer/dashboard', params: { farmerJson: JSON.stringify(farmer) } });
+      await AsyncStorage.setItem('currentFarmer', JSON.stringify(farmer));
+      router.replace('/farmer/(tabs)/panelim');
     } catch (err: any) {
       if (err.status === 404) {
         Alert.alert('Bulunamadı', 'Bu numara kayıtlı değil.');

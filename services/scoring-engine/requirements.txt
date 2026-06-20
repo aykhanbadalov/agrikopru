@@ -10,3 +10,4 @@ pytesseract
 Pillow
 pdf2image
 shap
+opencv-python-headless

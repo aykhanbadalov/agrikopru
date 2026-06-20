@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { API_BASE_URL } from '../constants/config';
 
 export type ScoreResult = {
@@ -96,4 +97,29 @@ export type ScoreHistoryPoint = {
 
 export function getScoreHistory(farmerId: string): Promise<ScoreHistoryPoint[]> {
   return apiFetch<ScoreHistoryPoint[]>(`/api/farmers/${farmerId}/score-history`);
+}
+
+export type CKSExtractResult = {
+  land_size_ha: number | null;
+  parcel_no: string | null;
+  confidence: number;
+  warning: string | null;
+  source: 'ocr_extracted';
+};
+
+export async function extractCKS(imageUri: string): Promise<CKSExtractResult> {
+  const result = await FileSystem.uploadAsync(
+    `${API_BASE_URL}/api/ocr/extract-cks`,
+    imageUri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+    }
+  );
+  const body = JSON.parse(result.body);
+  if (result.status < 200 || result.status >= 300) {
+    throw Object.assign(new Error(body.error || 'OCR hatası'), { status: result.status });
+  }
+  return body as CKSExtractResult;
 }
