@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -141,7 +142,10 @@ export default function SozlesmeTeklifiScreen() {
       <TouchableOpacity style={styles.btn} onPress={handleSubmit} disabled={submitting}>
         {submitting
           ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.btnText}>Teklif Oluştur</Text>
+          : <>
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={styles.btnText}>Teklif Oluştur</Text>
+            </>
         }
       </TouchableOpacity>
     </ScrollView>
@@ -181,7 +185,8 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 15, fontWeight: '700', color: '#16a34a' },
   bddk: { fontSize: 12, color: '#9ca3af', marginBottom: 20, lineHeight: 18 },
   btn: {
-    backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+    backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

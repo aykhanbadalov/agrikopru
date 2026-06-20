@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Circle, Line, Polyline, Svg, Text as SvgText } from 'react-native-svg';
 import ScoreBadge from '../../components/ScoreBadge';
 import { CKSExtractResult, Farmer, ScoreHistoryPoint, extractCKS, getFarmer, getScoreHistory } from '../../services/api';
@@ -230,10 +231,17 @@ export default function KrediAnaliziScreen() {
 
           {/* ÇKS Yükləmə */}
           <View style={styles.cksSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="document-attach-outline" size={15} color="#6b7280" />
+              <Text style={styles.cksSectionTitle}>ÇKS Belgesi</Text>
+            </View>
             <TouchableOpacity style={styles.cksBtn} onPress={handleCKSUpload} disabled={cksLoading}>
               {cksLoading
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.cksBtnText}>ÇKS Belgesi Yükle</Text>
+                : <>
+                    <Ionicons name="camera-outline" size={16} color="#fff" />
+                    <Text style={styles.cksBtnText}>ÇKS Belgesi Yükle</Text>
+                  </>
               }
             </TouchableOpacity>
             {cksResult && (
@@ -259,7 +267,10 @@ export default function KrediAnaliziScreen() {
 
           {s.feature_contributions && (
             <View style={styles.shapSection}>
-              <Text style={styles.shapTitle}>Skor Faktörleri</Text>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="analytics-outline" size={15} color="#6b7280" />
+                <Text style={styles.shapTitle}>Skor Faktörleri</Text>
+              </View>
               {Object.entries(s.feature_contributions)
                 .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
                 .map(([key, val]) => (
@@ -274,7 +285,10 @@ export default function KrediAnaliziScreen() {
 
           {history.length > 0 && (
             <View style={styles.historySection}>
-              <Text style={styles.historyTitle}>Skor Geçmişi</Text>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="time-outline" size={15} color="#6b7280" />
+                <Text style={styles.historyTitle}>Skor Geçmişi</Text>
+              </View>
               <ScoreChart points={history} />
             </View>
           )}
@@ -291,6 +305,7 @@ export default function KrediAnaliziScreen() {
           router.navigate({ pathname: '/(tabs)/contract', params: { farmerId: farmer.id } })
         }
       >
+        <Ionicons name="add-circle-outline" size={18} color="#fff" />
         <Text style={styles.btnText}>Sözleşme Oluştur</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -324,8 +339,10 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 15, color: '#374151', fontWeight: '500' },
   rowValue: { fontSize: 15, color: '#1f2937', fontWeight: '700' },
   cksSection: { marginTop: 4, marginBottom: 12 },
+  cksSectionTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
   cksBtn: {
-    backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 8, alignItems: 'center',
+    backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   cksBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   cksHa: { fontSize: 14, fontWeight: '700', color: '#166534' },
@@ -345,15 +362,17 @@ const styles = StyleSheet.create({
   modalImage: { flex: 1, width: '100%' },
   modalPdfNote: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   modalPdfText: { color: '#9ca3af', fontSize: 16, textAlign: 'center' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   shapSection: { marginTop: 8, marginBottom: 12 },
-  shapTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 10 },
+  shapTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
   historySection: { marginTop: 8, marginBottom: 12 },
-  historyTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 8 },
+  historyTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
   noHistory: { fontSize: 13, color: '#9ca3af', marginBottom: 12 },
   syntheticNote: { backgroundColor: '#fef3c7', borderRadius: 8, padding: 10, marginTop: 4 },
   syntheticText: { color: '#92400e', fontSize: 13, fontWeight: '600' },
   btn: {
-    backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+    backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

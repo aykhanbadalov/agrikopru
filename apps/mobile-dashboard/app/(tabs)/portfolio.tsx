@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
@@ -78,7 +79,12 @@ export default function PortfolyoScreen() {
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
           renderItem={({ item }) => <ContractCard contract={item} />}
-          ListEmptyComponent={<Text style={styles.empty}>Sözleşme bulunamadı.</Text>}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Ionicons name="document-outline" size={48} color="#d1d5db" />
+              <Text style={styles.empty}>Sözleşme bulunamadı.</Text>
+            </View>
+          }
         />
       )}
     </View>
@@ -123,5 +129,6 @@ const styles = StyleSheet.create({
   product: { fontSize: 15, fontWeight: '700', color: '#1f2937' },
   value: { fontSize: 15, color: '#166534', fontWeight: '600', marginBottom: 4 },
   date: { fontSize: 12, color: '#9ca3af' },
-  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },
+  emptyBox: { alignItems: 'center', marginTop: 40 },
+  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 8 },
 });

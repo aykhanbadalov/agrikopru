@@ -13,8 +13,8 @@ export default function FarmerTabLayout() {
         name="panelim"
         options={{
           title: 'Panelim',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -22,8 +22,8 @@ export default function FarmerTabLayout() {
         name="sozlesmelerim"
         options={{
           title: 'Sözleşmelerim',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -31,8 +31,8 @@ export default function FarmerTabLayout() {
         name="hesabim"
         options={{
           title: 'Hesabım',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
         }}
       />

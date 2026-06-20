@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -63,13 +64,15 @@ export default function SozlesmelerimScreen() {
                 })
               }
             >
+              <Ionicons name="checkmark-outline" size={16} color="#fff" />
               <Text style={styles.btnText}>Onayla</Text>
             </TouchableOpacity>
           )}
         </View>
       )}
       ListEmptyComponent={
-        <View style={styles.center}>
+        <View style={styles.emptyBox}>
+          <Ionicons name="document-outline" size={48} color="#d1d5db" />
           <Text style={styles.empty}>Henüz sözleşme yok.</Text>
         </View>
       }
@@ -81,7 +84,6 @@ const styles = StyleSheet.create({
   list: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   error: { color: '#ef4444' },
-  empty: { color: '#9ca3af', fontSize: 15 },
   card: {
     backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 10,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
@@ -91,7 +93,10 @@ const styles = StyleSheet.create({
   product: { fontSize: 14, color: '#6b7280', marginBottom: 6 },
   value: { fontSize: 15, color: '#166534', fontWeight: '600', marginBottom: 12 },
   btn: {
-    backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center',
+    backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  emptyBox: { alignItems: 'center', marginTop: 40 },
+  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 8, fontSize: 15 },
 });

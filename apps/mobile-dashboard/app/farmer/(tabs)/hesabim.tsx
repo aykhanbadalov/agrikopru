@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -136,11 +137,17 @@ export default function HesabimScreen() {
       </View>
 
       <View style={styles.cksCard}>
-        <Text style={styles.cksTitle}>ÇKS Belgesi</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="document-attach-outline" size={15} color="#6b7280" />
+          <Text style={styles.cksTitle}>ÇKS Belgesi</Text>
+        </View>
         <TouchableOpacity style={styles.cksBtn} onPress={handleCKSUpload} disabled={cksLoading}>
           {cksLoading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.cksBtnText}>Belge Yükle</Text>
+            : <>
+                <Ionicons name="camera-outline" size={16} color="#fff" />
+                <Text style={styles.cksBtnText}>Belge Yükle</Text>
+              </>
           }
         </TouchableOpacity>
 
@@ -204,9 +211,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 20,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
   },
-  cksTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  cksTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginLeft: 5 },
   cksBtn: {
-    backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 10, alignItems: 'center',
+    backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   cksBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   cksResult: { marginTop: 12 },
