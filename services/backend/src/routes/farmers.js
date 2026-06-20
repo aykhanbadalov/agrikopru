@@ -7,7 +7,11 @@ router.get('/', async (req, res, next) => {
   try {
     if (req.query.phone) {
       const { rows: farmers } = await db.query(
-        'SELECT * FROM farmers WHERE phone = $1',
+        `SELECT f.*, p.land_size_ha
+         FROM farmers f
+         LEFT JOIN parcels p ON p.farmer_id = f.id
+         WHERE f.phone = $1
+         LIMIT 1`,
         [req.query.phone]
       );
       if (!farmers.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
@@ -64,7 +68,11 @@ router.get('/:id/score-history', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { rows: farmers } = await db.query(
-      'SELECT * FROM farmers WHERE id = $1',
+      `SELECT f.*, p.land_size_ha
+       FROM farmers f
+       LEFT JOIN parcels p ON p.farmer_id = f.id
+       WHERE f.id = $1
+       LIMIT 1`,
       [req.params.id]
     );
     if (!farmers.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });

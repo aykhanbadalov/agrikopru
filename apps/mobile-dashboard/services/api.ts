@@ -15,6 +15,7 @@ export type Farmer = {
   full_name: string;
   phone: string;
   cooperative_member: boolean;
+  land_size_ha?: number | null;
   latest_score: ScoreResult | null;
 };
 

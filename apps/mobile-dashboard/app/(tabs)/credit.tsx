@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Modal,
   ScrollView,
@@ -15,96 +14,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Circle, Line, Polyline, Svg, Text as SvgText } from 'react-native-svg';
 import ScoreBadge from '../../components/ScoreBadge';
+import ScoreChart from '../../components/ScoreChart';
+import { ShapBar, FEATURE_LABELS } from '../../components/ShapBar';
 import { CKSExtractResult, Farmer, ScoreHistoryPoint, extractCKS, getFarmer, getScoreHistory } from '../../services/api';
-
-const FEATURE_LABELS: Record<string, string> = {
-  land_size_ha:          'Arazi Büyüklüğü',
-  farming_history_years: 'Çiftçilik Geçmişi',
-  cooperative_member:    'Kooperatif Üyeliği',
-  tarsim_history_score:  'Sigorta Geçmişi',
-  fertilizer_purchases:  'Gübre Alımı',
-  climate_risk_score:    'İklim Riski',
-};
-
-const BAND_COLOR: Record<string, string> = {
-  LOW: '#22c55e',
-  MEDIUM: '#eab308',
-  HIGH: '#ef4444',
-};
-
-const CHART_H = 120;
-const PAD = { top: 10, bottom: 28, left: 24, right: 24 };
-
-function ScoreChart({ points }: { points: ScoreHistoryPoint[] }) {
-  if (points.length < 2) {
-    return <Text style={styles.noHistory}>Henüz yeterli geçmiş yok.</Text>;
-  }
-
-  const W = Dimensions.get('window').width - 64;
-  const xStep = (W - PAD.left - PAD.right) / (points.length - 1);
-  const yRange = CHART_H - PAD.top - PAD.bottom;
-
-  const toX = (i: number) => PAD.left + i * xStep;
-  const toY = (score: number) => PAD.top + yRange * (1 - score / 1000);
-
-  const polyPoints = points.map((p, i) => `${toX(i)},${toY(p.score)}`).join(' ');
-
-  return (
-    <Svg width={W} height={CHART_H}>
-      {[0, 500, 1000].map((v) => (
-        <Line
-          key={v}
-          x1={PAD.left} y1={toY(v)}
-          x2={W - PAD.right} y2={toY(v)}
-          stroke="#e5e7eb" strokeWidth={1} strokeDasharray="4,3"
-        />
-      ))}
-      <Polyline points={polyPoints} fill="none" stroke="#6b7280" strokeWidth={1.5} />
-      {points.map((p, i) => (
-        <Circle
-          key={i}
-          cx={toX(i)} cy={toY(p.score)} r={5}
-          fill={BAND_COLOR[p.risk_band] ?? '#9ca3af'}
-        />
-      ))}
-      {points.map((p, i) => {
-        const d = new Date(p.created_at);
-        const label = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
-        return (
-          <SvgText
-            key={i}
-            x={toX(i)} y={CHART_H - 4}
-            fontSize={9} fill="#9ca3af" textAnchor="middle"
-          >{label}</SvgText>
-        );
-      })}
-    </Svg>
-  );
-}
-
-function ShapBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.abs(value);
-  const positive = value >= 0;
-  return (
-    <View style={shap.row}>
-      <Text style={shap.label}>{label}</Text>
-      <View style={shap.track}>
-        <View
-          style={[
-            shap.fill,
-            { width: `${Math.round(pct * 100)}%` },
-            positive ? shap.pos : shap.neg,
-          ]}
-        />
-      </View>
-      <Text style={[shap.val, positive ? shap.posText : shap.negText]}>
-        {positive ? '+' : ''}{value.toFixed(2)}
-      </Text>
-    </View>
-  );
-}
 
 export default function KrediAnaliziScreen() {
   const { farmerId } = useLocalSearchParams<{ farmerId?: string }>();
@@ -116,6 +29,7 @@ export default function KrediAnaliziScreen() {
   const [cksLoading, setCksLoading] = useState(false);
   const [cksImageUri, setCksImageUri] = useState<string | null>(null);
   const [cksModalVisible, setCksModalVisible] = useState(false);
+  const [creditInfoVisible, setCreditInfoVisible] = useState(false);
 
   useEffect(() => {
     if (!farmerId) return;
@@ -208,6 +122,37 @@ export default function KrediAnaliziScreen() {
         )}
       </View>
     </Modal>
+    <Modal
+      visible={creditInfoVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setCreditInfoVisible(false)}
+    >
+      <View style={styles.infoOverlay}>
+        <View style={styles.infoSheet}>
+          <View style={styles.infoHeader}>
+            <Text style={styles.infoTitle}>Kredi Limiti Nasıl Hesaplanır?</Text>
+            <TouchableOpacity style={styles.infoCloseBtn} onPress={() => setCreditInfoVisible(false)}>
+              <Text style={styles.infoCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.infoFormula}>
+            (Skor ÷ 1000) × Arazi (ha) × Bölge Katsayısı × 75.000 TL/ha
+          </Text>
+          <View style={styles.infoCalc}>
+            <Text style={styles.infoCalcLine}>
+              = ({s?.score} ÷ 1000) × {farmer.land_size_ha != null ? Number(farmer.land_size_ha).toString() : '—'} × 1,0 × 75.000
+            </Text>
+            <Text style={styles.infoCalcResult}>
+              = {s?.credit_limit_tl != null ? `${Number(s.credit_limit_tl).toLocaleString('tr-TR')} TL` : 'Bilgi yok'}
+            </Text>
+          </View>
+          <Text style={styles.infoNote}>
+            Bölge Katsayısı: 1,0 (varsayılan — gerçek uygulamada banka ortağı ile kalibre edilecek)
+          </Text>
+        </View>
+      </View>
+    </Modal>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.name}>{farmer.full_name}</Text>
 
@@ -220,14 +165,17 @@ export default function KrediAnaliziScreen() {
             <Text style={styles.rowLabel}>Risk Bandı</Text>
             <ScoreBadge band={s.risk_band} />
           </View>
-          <Row
-            label="Kredi Limiti"
-            value={
-              s.credit_limit_tl
+          <TouchableOpacity style={styles.row} onPress={() => setCreditInfoVisible(true)}>
+            <View style={styles.rowLabelWrap}>
+              <Text style={styles.rowLabel}>Kredi Limiti</Text>
+              <Ionicons name="information-circle-outline" size={15} color="#9ca3af" style={{ marginLeft: 4 }} />
+            </View>
+            <Text style={styles.rowValue}>
+              {s.credit_limit_tl
                 ? `${Number(s.credit_limit_tl).toLocaleString('tr-TR')} TL`
-                : 'Bilgi yok'
-            }
-          />
+                : 'Bilgi yok'}
+            </Text>
+          </TouchableOpacity>
 
           {/* ÇKS Yükləmə */}
           <View style={styles.cksSection}>
@@ -337,6 +285,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   rowWrap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   rowLabel: { fontSize: 15, color: '#374151', fontWeight: '500' },
+  rowLabelWrap: { flexDirection: 'row', alignItems: 'center' },
   rowValue: { fontSize: 15, color: '#1f2937', fontWeight: '700' },
   cksSection: { marginTop: 4, marginBottom: 12 },
   cksSectionTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
@@ -367,9 +316,25 @@ const styles = StyleSheet.create({
   shapTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
   historySection: { marginTop: 8, marginBottom: 12 },
   historyTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
-  noHistory: { fontSize: 13, color: '#9ca3af', marginBottom: 12 },
   syntheticNote: { backgroundColor: '#fef3c7', borderRadius: 8, padding: 10, marginTop: 4 },
   syntheticText: { color: '#92400e', fontSize: 13, fontWeight: '600' },
+  infoOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  infoSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    padding: 20, paddingBottom: 36,
+  },
+  infoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  infoTitle: { fontSize: 16, fontWeight: '800', color: '#1f2937', flex: 1, marginRight: 8 },
+  infoCloseBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center',
+  },
+  infoCloseText: { fontSize: 16, color: '#6b7280', fontWeight: '700' },
+  infoFormula: { fontSize: 14, color: '#374151', fontWeight: '600', marginBottom: 12, lineHeight: 22 },
+  infoCalc: { backgroundColor: '#f9fafb', borderRadius: 8, padding: 12, marginBottom: 12 },
+  infoCalcLine: { fontSize: 13, color: '#6b7280', marginBottom: 4 },
+  infoCalcResult: { fontSize: 15, color: '#166534', fontWeight: '700' },
+  infoNote: { fontSize: 12, color: '#9ca3af', lineHeight: 18 },
   btn: {
     backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -377,17 +342,3 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
 
-const shap = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  label: { fontSize: 12, color: '#374151', width: 110 },
-  track: {
-    flex: 1, height: 10, backgroundColor: '#e5e7eb',
-    borderRadius: 5, marginHorizontal: 8, overflow: 'hidden',
-  },
-  fill: { height: '100%', borderRadius: 5 },
-  pos: { backgroundColor: '#22c55e' },
-  neg: { backgroundColor: '#ef4444' },
-  val: { fontSize: 12, fontWeight: '700', width: 40, textAlign: 'right' },
-  posText: { color: '#16a34a' },
-  negText: { color: '#ef4444' },
-});

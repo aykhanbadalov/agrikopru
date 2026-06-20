@@ -3,7 +3,7 @@ import numpy as np
 import shap
 
 from config import (
-    BASE_COEFFICIENT_TL_HA,
+    BASE_TL_PER_HA,
     MODEL_PATH,
     MODEL_VERSION,
     RISK_BAND_LOW,
@@ -72,7 +72,7 @@ def score_request(req: ScoreRequest) -> ScoreResponse:
     credit_limit_tl = None
     if req.region_profitability_index is not None:
         credit_limit_tl = round(
-            score * req.land_size_ha * req.region_profitability_index * BASE_COEFFICIENT_TL_HA,
+            (score / SCORE_MAX) * req.land_size_ha * req.region_profitability_index * BASE_TL_PER_HA,
             2,
         )
 

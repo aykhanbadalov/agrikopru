@@ -2,8 +2,9 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 
-# Biznes tərəfi təsdiqləyənə qədər dəyişdirilməməlidir
-BASE_COEFFICIENT_TL_HA: float = 1000.0
+# Real tətbiqdə bank tərəfdaşı ilə kalibrasiya ediləcək; V1 üçün Türkiyə
+# kənd təsərrüfatı kredit normalarına yaxın placeholder dəyər
+BASE_TL_PER_HA: float = 75000.0
 
 SCORE_MIN: int = 0
 SCORE_MAX: int = 1000
