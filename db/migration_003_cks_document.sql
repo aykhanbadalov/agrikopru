@@ -1,0 +1,1 @@
+ALTER TABLE farmers ADD COLUMN IF NOT EXISTS cks_document_path TEXT DEFAULT NULL;

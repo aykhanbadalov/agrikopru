@@ -11,3 +11,8 @@ class CKSExtractResponse(BaseModel):
     warning: Optional[str]
     # Literal sabiti: kodun heç bir yerindən "verified" yazıla bilməz
     source: Literal["ocr_extracted"] = "ocr_extracted"
+    national_id: Optional[str] = None
+    full_name: Optional[str] = None
+    birth_date: Optional[str] = None
+    settlement: Optional[str] = None
+    phone: Optional[str] = None

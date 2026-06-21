@@ -1,20 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { router, Tabs } from 'expo-router';
-import { TouchableOpacity } from 'react-native';
-
-async function changeRole() {
-  await AsyncStorage.removeItem('userRole');
-  router.replace('/role-select');
-}
-
-function RoleChangeButton() {
-  return (
-    <TouchableOpacity onPress={changeRole} style={{ marginRight: 16 }}>
-      <Ionicons name="swap-horizontal-outline" size={22} color="#2563eb" />
-    </TouchableOpacity>
-  );
-}
+import { Tabs } from 'expo-router';
 
 export default function TabLayout() {
   return (
@@ -22,8 +7,6 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: '#16a34a',
         tabBarInactiveTintColor: '#9ca3af',
-        headerRight: () => <RoleChangeButton />,
-        headerRightContainerStyle: { paddingRight: 0 },
       }}
     >
       <Tabs.Screen
@@ -59,6 +42,15 @@ export default function TabLayout() {
           title: 'Aktif Portföy',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="hesabim"
+        options={{
+          title: 'Hesabım',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
         }}
       />

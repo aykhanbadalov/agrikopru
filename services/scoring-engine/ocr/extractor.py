@@ -62,6 +62,13 @@ _METREKARE_PATTERNS = [
     re.compile(r'([\d.]+)\s*metrekare'),
 ]
 
+# Şəxsiyyət məlumatı pattern-ləri: ÇKS sənədi üzrə şəxsi sahələr
+_NATIONAL_ID_PATTERN = re.compile(r'T\.?C\.?\s*Kimlik\s*No\s*[:\-]?\s*(\d{11})')
+_FULL_NAME_PATTERN   = re.compile(r'Ad[ıi]\s*Soyad[ıi]\s*[:\-]?\s*([A-ZÇŞĞÜÖİ ]{3,})')
+_BIRTH_DATE_PATTERN  = re.compile(r'Do[ğg]um\s*Tarihi\s*[:\-]?\s*(\d{2}/\d{2}/\d{4})')
+_SETTLEMENT_PATTERN  = re.compile(r'Yerle[şs]im\s*Birimi\s*[:\-]?\s*(.+?)(?:\n|$)')
+_PHONE_CKS_PATTERN   = re.compile(r'[Cc]ep\s*[:\-]?\s*[\D]*(\d{10,11})')
+
 # Parsel nömrəsi: "Parsel No: 123", "Ada/Parsel: 456/78"
 _PARCEL_PATTERNS = [
     re.compile(r'[Pp]arsel\s*[Nn]o\s*[:=]?\s*(\d+)'),
@@ -101,6 +108,67 @@ def _extract_land_size(text: str) -> Optional[float]:
             m2 = int(m.group(1).replace('.', ''))
             return round(m2 / 10000, 4)
     return None
+
+
+def _extract_national_id(text: str) -> Optional[str]:
+    m = _NATIONAL_ID_PATTERN.search(text)
+    return m.group(1) if m else None
+
+
+def _extract_full_name(text: str) -> Optional[str]:
+    m = _FULL_NAME_PATTERN.search(text)
+    return m.group(1).strip() if m else None
+
+
+def _extract_birth_date(text: str) -> Optional[str]:
+    m = _BIRTH_DATE_PATTERN.search(text)
+    return m.group(1) if m else None
+
+
+def _extract_settlement(text: str) -> Optional[str]:
+    m = _SETTLEMENT_PATTERN.search(text)
+    return m.group(1).strip() if m else None
+
+
+def _extract_phone_cks(text: str) -> Optional[str]:
+    m = _PHONE_CKS_PATTERN.search(text)
+    if m:
+        digits = re.sub(r'\D', '', m.group(1))
+        return digits[-10:] if len(digits) >= 10 else None
+    return None
+
+
+def _reconstruct_lines(
+    data: dict, img_height: int,
+    top_fraction: float = 0.40, line_tol: int = 15,
+) -> str:
+    """Tesseract söz-koordinat məlumatından vizual sətirləri yenidən qur.
+
+    Sütunlu kimlik qutuları üçün: eyni vizual sətirdəki sözlər 'top'
+    dəyərinə görə qruplaşdırılır (tolerans line_tol px), sonra 'left'
+    üzrə soldan-sağa sıralanıb birləşdirilir.
+    """
+    cutoff = int(img_height * top_fraction)
+    words = [
+        (data['left'][i], data['top'][i], data['text'][i])
+        for i in range(len(data['text']))
+        if int(data['conf'][i]) > 0
+        and data['text'][i].strip()
+        and data['top'][i] < cutoff
+    ]
+    if not words:
+        return ''
+    words.sort(key=lambda w: (w[1], w[0]))
+    groups: list = []
+    current = [words[0]]
+    for word in words[1:]:
+        if abs(word[1] - current[0][1]) <= line_tol:
+            current.append(word)
+        else:
+            groups.append(sorted(current, key=lambda w: w[0]))
+            current = [word]
+    groups.append(sorted(current, key=lambda w: w[0]))
+    return '\n'.join(' '.join(w[2] for w in g) for g in groups)
 
 
 def _extract_parcel_no(text: str) -> Optional[str]:
@@ -227,12 +295,12 @@ def extract_from_cks(data: bytes, content_type: Optional[str]) -> "CKSExtractRes
 
     img = _preprocess(_to_pil(data, detected))
 
-    # Söz səviyyəsində etibarlılıq
-    import pandas as pd
-    df = pytesseract.image_to_data(img, lang=OCR_LANG, output_type=Output.DATAFRAME)
-    valid = df[df["conf"] >= 0]["conf"]
-    confidence = float(valid.mean()) / 100.0 if not valid.empty else 0.0
+    # Söz-koordinat məlumatı: həm etibarlılıq, həm kimlik sətir-yenidənqurma üçün
+    data_dict = pytesseract.image_to_data(img, lang=OCR_LANG, output_type=Output.DICT)
+    confs = [int(c) for c in data_dict['conf'] if int(c) >= 0]
+    confidence = (sum(confs) / len(confs) / 100.0) if confs else 0.0
 
+    id_text = _reconstruct_lines(data_dict, img.height)
     raw_text = pytesseract.image_to_string(img, lang=OCR_LANG)
 
     land_size_ha = _extract_land_size(raw_text)
@@ -254,4 +322,11 @@ def extract_from_cks(data: bytes, content_type: Optional[str]) -> "CKSExtractRes
         raw_text=raw_text,
         confidence=round(confidence, 4),
         warning=warning,
+        national_id=_extract_national_id(id_text),
+        full_name=_extract_full_name(id_text),
+        birth_date=_extract_birth_date(id_text),
+        settlement=_extract_settlement(id_text),
+        # id_text-də "Cep:" etiketi ilə rəqəm fərqli sətirə düşə bilər (y-koordinat
+        # sürüşməsi); raw_text-də həmişə eyni sətirdədir → ehtiyat olaraq yoxlanır
+        phone=_extract_phone_cks(id_text) or _extract_phone_cks(raw_text),
     )

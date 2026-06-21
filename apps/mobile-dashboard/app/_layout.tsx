@@ -4,16 +4,19 @@ import { useEffect } from 'react';
 
 export default function RootLayout() {
   useEffect(() => {
-    AsyncStorage.getItem('userRole').then((role) => {
-      if (role === 'buyer') router.replace('/(tabs)');
-      else if (role === 'farmer') router.replace('/farmer/login');
-      else router.replace('/role-select');
+    AsyncStorage.getItem('session').then((raw) => {
+      if (raw) {
+        const { role } = JSON.parse(raw);
+        router.replace(role === 'buyer' ? '/(tabs)' : '/farmer/(tabs)/panelim');
+      } else {
+        router.replace('/auth/start');
+      }
     });
   }, []);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="role-select" />
+      <Stack.Screen name="auth" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="farmer" />
     </Stack>

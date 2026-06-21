@@ -1,19 +1,8 @@
 const { Router } = require('express');
-const bcrypt = require('bcryptjs');
 const db = require('../db');
+const { generateOtp, verifyOtp } = require('../otp');
 
 const router = Router();
-
-const PIN_MAX_ATTEMPTS = 3;
-const PIN_LOCKOUT_MS   = 15 * 60 * 1000; // 15 dəqiqə
-
-// key: `${contractId}:${farmerId}` → { attempts: number, lockedUntil: number|null }
-const pinAttempts = new Map();
-
-function getPinEntry(key) {
-  if (!pinAttempts.has(key)) pinAttempts.set(key, { attempts: 0, lockedUntil: null });
-  return pinAttempts.get(key);
-}
 
 router.get('/', async (req, res, next) => {
   const { farmer_id, status, buyer_name } = req.query;
@@ -35,8 +24,33 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// send-create-otp MUST be before /:id routes to avoid Express matching "send-create-otp" as :id
+router.post('/send-create-otp', async (req, res, next) => {
+  const { buyer_phone } = req.body;
+  if (!buyer_phone) return res.status(400).json({ error: 'buyer_phone zorunludur.' });
+  try {
+    const code = generateOtp(buyer_phone, 'create-contract');
+    res.json({ demoCode: code });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/', async (req, res, next) => {
-  const { farmer_id, buyer_name, product_type, quantity_kg, price_per_kg } = req.body;
+  const { farmer_id, buyer_name, product_type, quantity_kg, price_per_kg, buyer_phone, code } = req.body;
+
+  if (!buyer_phone || !code) {
+    return res.status(400).json({ error: 'buyer_phone ve code zorunludur.' });
+  }
+
+  const otpResult = verifyOtp(buyer_phone, 'create-contract', code);
+  if (!otpResult.ok) {
+    return res.status(otpResult.lockedUntil ? 429 : 403).json({
+      error: otpResult.error,
+      ...(otpResult.lockedUntil && { lockedUntil: otpResult.lockedUntil }),
+    });
+  }
+
   const total_value_tl = Number(quantity_kg) * Number(price_per_kg);
   try {
     const { rows } = await db.query(
@@ -51,47 +65,32 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+router.post('/:id/send-confirm-otp', async (req, res, next) => {
+  const { farmer_id } = req.body;
+  try {
+    const { rows } = await db.query('SELECT phone FROM farmers WHERE id = $1', [farmer_id]);
+    if (!rows.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
+    const code = generateOtp(rows[0].phone, 'confirm');
+    res.json({ demoCode: code });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/:id/confirm', async (req, res, next) => {
-  const { farmer_id, pin } = req.body;
-  const key = `${req.params.id}:${farmer_id}`;
-  const entry = getPinEntry(key);
-
-  // Kilit müddəti bitibsə sayğacı sıfırla
-  if (entry.lockedUntil && Date.now() >= entry.lockedUntil) {
-    entry.attempts = 0;
-    entry.lockedUntil = null;
-  }
-
-  // Kilit aktivdirsə dərhal rədd et
-  if (entry.lockedUntil && Date.now() < entry.lockedUntil) {
-    return res.status(429).json({
-      error: 'Çok fazla hatalı PIN denemesi. Lütfen daha sonra tekrar deneyin.',
-      lockedUntil: entry.lockedUntil,
-    });
-  }
+  const { farmer_id, code } = req.body;
 
   try {
-    const { rows: farmers } = await db.query(
-      'SELECT pin_hash FROM farmers WHERE id = $1',
-      [farmer_id]
-    );
+    const { rows: farmers } = await db.query('SELECT phone FROM farmers WHERE id = $1', [farmer_id]);
     if (!farmers.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
 
-    const { pin_hash } = farmers[0];
-    if (!pin_hash || !(await bcrypt.compare(String(pin), pin_hash))) {
-      entry.attempts += 1;
-      if (entry.attempts >= PIN_MAX_ATTEMPTS) {
-        entry.lockedUntil = Date.now() + PIN_LOCKOUT_MS;
-        return res.status(429).json({
-          error: 'Çok fazla hatalı PIN denemesi. Lütfen daha sonra tekrar deneyin.',
-          lockedUntil: entry.lockedUntil,
-        });
-      }
-      return res.status(403).json({ error: 'Yanlış PIN.' });
+    const otpResult = verifyOtp(farmers[0].phone, 'confirm', code);
+    if (!otpResult.ok) {
+      return res.status(otpResult.lockedUntil ? 429 : 403).json({
+        error: otpResult.error,
+        ...(otpResult.lockedUntil && { lockedUntil: otpResult.lockedUntil }),
+      });
     }
-
-    // Doğru PIN — sayğacı sıfırla
-    pinAttempts.delete(key);
 
     const { rows, rowCount } = await db.query(
       `UPDATE contracts

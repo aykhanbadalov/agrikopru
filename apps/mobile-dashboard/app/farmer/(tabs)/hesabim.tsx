@@ -1,3 +1,4 @@
+import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -8,111 +9,87 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { API_BASE_URL } from '../../../constants/config';
-import { CKSExtractResult, Farmer, extractCKS } from '../../../services/api';
+import {
+  CKSExtractResult,
+  Farmer,
+  authChangePassword,
+  getCKSDocument,
+} from '../../../services/api';
 
-async function changeRole() {
-  await AsyncStorage.removeItem('userRole');
-  await AsyncStorage.removeItem('currentFarmer');
-  router.replace('/role-select');
+function ProfileRow({ icon, label, children }: {
+  icon: string; label: string; children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.profileRow}>
+      <Ionicons name={icon as any} size={14} color="#6b7280" />
+      <Text style={styles.profileLabel}>{label}</Text>
+      <View style={styles.profileValue}>{children}</View>
+    </View>
+  );
+}
+
+async function logout() {
+  await AsyncStorage.multiRemove(['session', 'currentFarmer', 'userRole']);
+  router.replace('/auth/start');
 }
 
 export default function HesabimScreen() {
   const [farmer, setFarmer] = useState<Farmer | null>(null);
-  const [cksResult, setCksResult] = useState<CKSExtractResult | null>(null);
-  const [cksLoading, setCksLoading] = useState(false);
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [cksImageUri, setCksImageUri] = useState<string | null>(null);
+
+  const [cksUrl, setCksUrl] = useState<string | null>(null);
+  const [cksUrlLoading, setCksUrlLoading] = useState(true);
   const [cksModalVisible, setCksModalVisible] = useState(false);
+
+  const [cpOld, setCpOld] = useState('');
+  const [cpNew, setCpNew] = useState('');
+  const [cpRepeat, setCpRepeat] = useState('');
+  const [cpError, setCpError] = useState<string | null>(null);
+  const [cpSuccess, setCpSuccess] = useState(false);
+  const [cpLoading, setCpLoading] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('currentFarmer').then((raw) => {
-      if (!raw) { router.replace('/farmer/login'); return; }
-      setFarmer(JSON.parse(raw));
+      if (!raw) { router.replace('/auth/start'); return; }
+      const f: Farmer = JSON.parse(raw);
+      setFarmer(f);
+      getCKSDocument(f.id)
+        .then(({ url }) => setCksUrl(url))
+        .catch(() => setCksUrl(null))
+        .finally(() => setCksUrlLoading(false));
     });
   }, []);
 
-  async function handleCKSUpload() {
-    Alert.alert('ÇKS Belgesi', 'Belgeyi nasıl yüklemek istersiniz?', [
-      {
-        text: 'Kamera',
-        onPress: async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) { Alert.alert('İzin Gerekli', 'Kamera izni verilmedi.'); return; }
-          const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 1 });
-          if (!result.canceled) { setSaved(false); await runOCR(result.assets[0].uri); }
-        },
-      },
-      {
-        text: 'Galeri',
-        onPress: async () => {
-          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!perm.granted) { Alert.alert('İzin Gerekli', 'Galeri izni verilmedi.'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 1 });
-          if (!result.canceled) { setSaved(false); await runOCR(result.assets[0].uri); }
-        },
-      },
-      {
-        text: 'Dosya',
-        onPress: async () => {
-          const result = await DocumentPicker.getDocumentAsync({
-            type: ['image/*', 'application/pdf'],
-            copyToCacheDirectory: true,
-          });
-          if (!result.canceled) { setSaved(false); await runOCR(result.assets[0].uri); }
-        },
-      },
-      { text: 'İptal', style: 'cancel' },
-    ]);
-  }
-
-  async function runOCR(uri: string) {
-    setCksImageUri(uri);
-    setCksLoading(true);
+  async function handleChangePassword() {
+    if (!cpOld || !cpNew || !cpRepeat) { setCpError('Tüm alanlar zorunludur.'); return; }
+    if (cpNew !== cpRepeat) { setCpError('Yeni şifreler eşleşmiyor.'); return; }
+    setCpError(null);
+    setCpLoading(true);
     try {
-      const result = await extractCKS(uri);
-      setCksResult(result);
-    } catch {
-      Alert.alert('Hata', 'ÇKS belgesi okunamadı.');
+      await authChangePassword(farmer!.phone, 'farmer', cpOld, cpNew);
+      setCpSuccess(true);
+      setCpOld(''); setCpNew(''); setCpRepeat('');
+    } catch (e: any) {
+      setCpError(e.message || 'Şifre değiştirilemedi.');
     } finally {
-      setCksLoading(false);
-    }
-  }
-
-  async function saveLandSize(ha: number) {
-    if (!farmer) return;
-    setSaveLoading(true);
-    try {
-      await fetch(`${API_BASE_URL}/api/farmers/${farmer.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: farmer.full_name,
-          phone: farmer.phone,
-          cooperative_member: farmer.cooperative_member,
-          land_size_ha: ha,
-        }),
-      });
-      Alert.alert('Kaydedildi', `Arazi büyüklüğü ${ha.toFixed(4)} ha olarak kaydedildi.`);
-      setSaved(true);
-    } catch {
-      Alert.alert('Hata', 'Kayıt başarısız.');
-    } finally {
-      setSaveLoading(false);
+      setCpLoading(false);
     }
   }
 
   if (!farmer) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#16a34a" /></View>;
   }
+
+  const cksIsPdf = cksUrl?.includes('.pdf');
 
   return (
     <>
@@ -121,19 +98,92 @@ export default function HesabimScreen() {
         <TouchableOpacity style={styles.modalClose} onPress={() => setCksModalVisible(false)}>
           <Text style={styles.modalCloseText}>✕</Text>
         </TouchableOpacity>
-        {cksImageUri?.endsWith('.pdf') ? (
+        {cksIsPdf ? (
           <View style={styles.modalPdfNote}>
-            <Text style={styles.modalPdfText}>Bu belge PDF olduğu için önizleme gösterilemiyor.</Text>
+            <Text style={styles.modalPdfText}>Bu belge PDF formatındadır.</Text>
+            <TouchableOpacity
+              style={styles.openBtn}
+              onPress={() => cksUrl && Linking.openURL(cksUrl)}
+            >
+              <Text style={styles.openBtnText}>Tarayıcıda Aç</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          <Image source={{ uri: cksImageUri ?? '' }} style={styles.modalImage} resizeMode="contain" />
+          <Image source={{ uri: cksUrl ?? '' }} style={styles.modalImage} resizeMode="contain" />
         )}
       </View>
     </Modal>
+
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.infoCard}>
         <Text style={styles.infoName}>{farmer.full_name}</Text>
         <Text style={styles.infoPhone}>{farmer.phone}</Text>
+      </View>
+
+      <View style={styles.profileCard}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="person-circle-outline" size={15} color="#6b7280" />
+          <Text style={styles.profileTitle}>Profil Bilgileri</Text>
+        </View>
+        <ProfileRow icon="people-outline" label="Kooperatif Üyeliği">
+          <View style={[styles.badge, farmer.cooperative_member ? styles.badgeGreen : styles.badgeGray]}>
+            <Text style={[styles.badgeText, farmer.cooperative_member ? styles.badgeTextGreen : styles.badgeTextGray]}>
+              {farmer.cooperative_member ? 'Üye' : 'Üye Değil'}
+            </Text>
+          </View>
+        </ProfileRow>
+        <ProfileRow icon="calendar-outline" label="Çiftçilik Geçmişi">
+          <Text style={styles.profileValueText}>
+            {farmer.farming_history_years != null ? `${farmer.farming_history_years} yıl` : '—'}
+          </Text>
+        </ProfileRow>
+        <ProfileRow icon="resize-outline" label="Arazi Büyüklüğü">
+          <Text style={styles.profileValueText}>
+            {farmer.land_size_ha != null ? `${Number(farmer.land_size_ha).toString()} ha` : '—'}
+          </Text>
+        </ProfileRow>
+        <ProfileRow icon="location-outline" label="Bölge">
+          <Text style={styles.profileValueText}>{farmer.region ?? '—'}</Text>
+        </ProfileRow>
+      </View>
+
+      <View style={styles.pwCard}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="key-outline" size={15} color="#6b7280" />
+          <Text style={styles.pwTitle}>Şifreyi Değiştir</Text>
+        </View>
+        <TextInput
+          style={styles.pwInput}
+          value={cpOld}
+          onChangeText={v => { setCpOld(v); setCpSuccess(false); setCpError(null); }}
+          secureTextEntry
+          placeholder="Mevcut şifre"
+          placeholderTextColor="#9ca3af"
+        />
+        <TextInput
+          style={styles.pwInput}
+          value={cpNew}
+          onChangeText={v => { setCpNew(v); setCpError(null); }}
+          secureTextEntry
+          placeholder="Yeni şifre (en az 8 karakter)"
+          placeholderTextColor="#9ca3af"
+        />
+        {cpNew.length > 0 && cpNew.length < 8 && (
+          <Text style={styles.fieldWarn}>En az 8 karakter olmalıdır.</Text>
+        )}
+        <TextInput
+          style={styles.pwInput}
+          value={cpRepeat}
+          onChangeText={v => { setCpRepeat(v); setCpError(null); }}
+          secureTextEntry
+          placeholder="Yeni şifre tekrar"
+          placeholderTextColor="#9ca3af"
+        />
+        {cpError && <Text style={styles.pwError}>{cpError}</Text>}
+        {cpSuccess && <Text style={styles.pwSuccess}>Şifre güncellendi.</Text>}
+        <TouchableOpacity style={styles.pwBtn} onPress={handleChangePassword} disabled={cpLoading}>
+          {cpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.pwBtnText}>Güncelle</Text>}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.cksCard}>
@@ -141,56 +191,29 @@ export default function HesabimScreen() {
           <Ionicons name="document-attach-outline" size={15} color="#6b7280" />
           <Text style={styles.cksTitle}>ÇKS Belgesi</Text>
         </View>
-        <TouchableOpacity style={styles.cksBtn} onPress={handleCKSUpload} disabled={cksLoading}>
-          {cksLoading
-            ? <ActivityIndicator color="#fff" />
-            : <>
-                <Ionicons name="camera-outline" size={16} color="#fff" />
-                <Text style={styles.cksBtnText}>Belge Yükle</Text>
-              </>
-          }
-        </TouchableOpacity>
-
-        {cksResult && (
-          <View style={styles.cksResult}>
-            {cksResult.land_size_ha !== null ? (
-              <Text style={styles.cksHa}>Arazi: {cksResult.land_size_ha.toFixed(4)} ha</Text>
-            ) : (
-              <Text style={styles.cksWarn}>Arazi büyüklüğü okunamadı.</Text>
-            )}
-            {cksResult.confidence < 0.6 && (
-              <Text style={styles.cksWarn}>⚠ Sənəd aydın deyil, el ile kontrol edin.</Text>
-            )}
-            {cksResult.warning && (
-              <Text style={styles.cksWarn}>{cksResult.warning}</Text>
-            )}
-            {cksResult.land_size_ha !== null && (
-              saved ? (
-                <Text style={styles.savedText}>✓ Kaydedildi</Text>
-              ) : (
-                <TouchableOpacity
-                  style={styles.saveBtn}
-                  onPress={() => saveLandSize(cksResult.land_size_ha!)}
-                  disabled={saveLoading}
-                >
-                  {saveLoading
-                    ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.saveBtnText}>Kaydet</Text>
-                  }
-                </TouchableOpacity>
-              )
-            )}
-            {cksImageUri && (
-              <TouchableOpacity style={styles.viewBtn} onPress={() => setCksModalVisible(true)}>
-                <Text style={styles.viewBtnText}>Belgemi Gör</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+        {cksUrlLoading ? (
+          <ActivityIndicator color="#6b7280" />
+        ) : cksUrl ? (
+          <TouchableOpacity style={styles.cksViewBtn} onPress={() => setCksModalVisible(true)}>
+            <Ionicons name="document-outline" size={15} color="#fff" />
+            <Text style={styles.cksViewBtnText}>Belgemi Gör</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.cksNotFound}>ÇKS belgesi bulunamadı.</Text>
         )}
       </View>
 
-      <TouchableOpacity style={styles.roleBtn} onPress={changeRole}>
-        <Text style={styles.roleBtnText}>Rolü Değiştir</Text>
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={() =>
+          Alert.alert('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', [
+            { text: 'İptal', style: 'cancel' },
+            { text: 'Çıkış Yap', style: 'destructive', onPress: logout },
+          ])
+        }
+      >
+        <Ionicons name="log-out-outline" size={18} color="#dc2626" />
+        <Text style={styles.logoutBtnText}>Çıkış Yap</Text>
       </TouchableOpacity>
     </ScrollView>
     </>
@@ -207,35 +230,58 @@ const styles = StyleSheet.create({
   },
   infoName: { fontSize: 20, fontWeight: '800', color: '#1f2937', marginBottom: 4 },
   infoPhone: { fontSize: 15, color: '#6b7280' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  profileCard: {
+    backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 20,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  profileTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginLeft: 5 },
+  profileRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 8,
+  },
+  profileLabel: { fontSize: 14, color: '#6b7280', flex: 1 },
+  profileValue: { alignItems: 'flex-end' },
+  profileValueText: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
+  badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  badgeGreen: { backgroundColor: '#dcfce7' },
+  badgeGray: { backgroundColor: '#f3f4f6' },
+  badgeText: { fontSize: 13, fontWeight: '600' },
+  badgeTextGreen: { color: '#166534' },
+  badgeTextGray: { color: '#6b7280' },
+  pwCard: {
+    backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 20,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  pwTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginLeft: 5 },
+  pwInput: {
+    backgroundColor: '#f9fafb', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb',
+    padding: 12, fontSize: 15, color: '#1f2937', marginBottom: 12,
+  },
+  fieldWarn: { color: '#b45309', fontSize: 12, marginTop: -8, marginBottom: 10 },
+  pwError: { color: '#dc2626', fontSize: 13, marginBottom: 8 },
+  pwSuccess: { color: '#16a34a', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  pwBtn: {
+    backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 12, alignItems: 'center',
+  },
+  pwBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cksCard: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 20,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   cksTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginLeft: 5 },
-  cksBtn: {
-    backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 10,
+  cksViewBtn: {
+    backgroundColor: '#6b7280', borderRadius: 8, paddingVertical: 10,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  cksBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  cksResult: { marginTop: 12 },
-  cksHa: { fontSize: 16, fontWeight: '700', color: '#166534', marginBottom: 6 },
-  cksWarn: { fontSize: 13, color: '#b45309', marginBottom: 4 },
-  saveBtn: {
-    marginTop: 8, backgroundColor: '#16a34a', borderRadius: 8,
-    paddingVertical: 10, alignItems: 'center',
+  cksViewBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  cksNotFound: { fontSize: 14, color: '#9ca3af', textAlign: 'center', paddingVertical: 8 },
+  logoutBtn: {
+    backgroundColor: '#fee2e2', borderRadius: 10, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: '#fca5a5',
   },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  savedText: { color: '#16a34a', fontWeight: '700', textAlign: 'center', marginTop: 8 },
-  viewBtn: {
-    marginTop: 8, backgroundColor: '#6b7280', borderRadius: 8,
-    paddingVertical: 10, alignItems: 'center',
-  },
-  viewBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  roleBtn: {
-    backgroundColor: '#6b7280', borderRadius: 10, paddingVertical: 14, alignItems: 'center',
-  },
-  roleBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  logoutBtnText: { color: '#dc2626', fontSize: 16, fontWeight: '700' },
   modalContainer: { flex: 1, backgroundColor: '#000' },
   modalClose: {
     position: 'absolute', top: 48, right: 20, zIndex: 10,
@@ -244,6 +290,10 @@ const styles = StyleSheet.create({
   },
   modalCloseText: { color: '#fff', fontSize: 20, fontWeight: '700' },
   modalImage: { flex: 1, width: '100%' },
-  modalPdfNote: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  modalPdfNote: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 20 },
   modalPdfText: { color: '#9ca3af', fontSize: 16, textAlign: 'center' },
+  openBtn: {
+    backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24,
+  },
+  openBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

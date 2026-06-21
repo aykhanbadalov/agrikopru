@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const db = require('../db');
+const supabase = require('../supabase');
 
 const router = Router();
 
@@ -7,7 +8,7 @@ router.get('/', async (req, res, next) => {
   try {
     if (req.query.phone) {
       const { rows: farmers } = await db.query(
-        `SELECT f.*, p.land_size_ha
+        `SELECT f.*, p.land_size_ha, p.region
          FROM farmers f
          LEFT JOIN parcels p ON p.farmer_id = f.id
          WHERE f.phone = $1
@@ -68,7 +69,7 @@ router.get('/:id/score-history', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { rows: farmers } = await db.query(
-      `SELECT f.*, p.land_size_ha
+      `SELECT f.*, p.land_size_ha, p.region
        FROM farmers f
        LEFT JOIN parcels p ON p.farmer_id = f.id
        WHERE f.id = $1
@@ -117,6 +118,25 @@ router.put('/:id', async (req, res, next) => {
     }
 
     res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/cks-document', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT cks_document_path FROM farmers WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows.length || !rows[0].cks_document_path) {
+      return res.status(404).json({ error: 'ÇKS belgesi bulunamadı.' });
+    }
+    const { data, error } = await supabase.storage
+      .from('cks-documents')
+      .createSignedUrl(rows[0].cks_document_path, 3600);
+    if (error) throw error;
+    res.json({ url: data.signedUrl });
   } catch (err) {
     next(err);
   }

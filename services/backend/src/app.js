@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const errorHandler    = require('./middleware/errorHandler');
 const healthRouter    = require('./routes/health');
+const authRouter      = require('./routes/auth');
 const scoreRouter     = require('./routes/score');
 const farmersRouter   = require('./routes/farmers');
 const contractsRouter = require('./routes/contracts');
@@ -12,6 +13,7 @@ app.use(cors()); // dev: * — prodda origin məhdudlaşdır
 app.use(express.json());
 
 app.use('/health',        healthRouter);
+app.use('/api/auth',      authRouter);
 app.use('/api/score',     scoreRouter);
 app.use('/api/farmers',   farmersRouter);
 app.use('/api/contracts', contractsRouter);

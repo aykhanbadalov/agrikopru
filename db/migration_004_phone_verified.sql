@@ -1,0 +1,2 @@
+ALTER TABLE farmers ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT false;
+ALTER TABLE buyers  ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT false;
