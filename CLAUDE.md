@@ -56,6 +56,10 @@ Tamamlanmış komponentlər
 Skor mühərriki (services/scoring-engine/)
   - Sintetik data generatoru (data/generate_dataset.py)
   - XGBoost təlim skripti (training/train.py)
+    Komanda tərəfindən yenidən quruldu: ayrıca validation dəsti ilə test sızması
+    aradan qaldırıldı, scale_pos_weight ilə sinif balansı idarə olunur.
+    Son AUC: 0.9102. Bu səbəbdən Demo Çiftçi skoru 844 (LOW) → 648 (MEDIUM)
+    dəyişib — gözlənilən və sağlam dəyişiklikdir, bug deyil.
   - FastAPI: POST /score, GET /health
   - OCR modulu: POST /ocr/extract-cks
     - Tesseract + OpenCV cədvəl aşkarlaması
