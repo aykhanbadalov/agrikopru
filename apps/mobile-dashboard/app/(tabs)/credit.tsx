@@ -1,11 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -17,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScoreBadge from '../../components/ScoreBadge';
 import ScoreChart from '../../components/ScoreChart';
 import { ShapBar, FEATURE_LABELS } from '../../components/ShapBar';
-import { CKSExtractResult, Farmer, ScoreHistoryPoint, extractCKS, getFarmer, getScoreHistory } from '../../services/api';
+import { Farmer, ScoreHistoryPoint, getFarmer, getScoreHistory } from '../../services/api';
 
 export default function KrediAnaliziScreen() {
   const { farmerId } = useLocalSearchParams<{ farmerId?: string }>();
@@ -25,10 +21,6 @@ export default function KrediAnaliziScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<ScoreHistoryPoint[]>([]);
-  const [cksResult, setCksResult] = useState<CKSExtractResult | null>(null);
-  const [cksLoading, setCksLoading] = useState(false);
-  const [cksImageUri, setCksImageUri] = useState<string | null>(null);
-  const [cksModalVisible, setCksModalVisible] = useState(false);
   const [creditInfoVisible, setCreditInfoVisible] = useState(false);
 
   useEffect(() => {
@@ -44,53 +36,6 @@ export default function KrediAnaliziScreen() {
     if (!farmerId) return;
     getScoreHistory(farmerId).then(setHistory).catch(() => {});
   }, [farmerId]);
-
-  async function handleCKSUpload() {
-    Alert.alert('ÇKS Belgesi', 'Belgeyi nasıl yüklemek istersiniz?', [
-      {
-        text: 'Kamera',
-        onPress: async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) { Alert.alert('İzin Gerekli', 'Kamera izni verilmedi.'); return; }
-          const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 1 });
-          if (!result.canceled) await runOCR(result.assets[0].uri);
-        },
-      },
-      {
-        text: 'Galeri',
-        onPress: async () => {
-          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!perm.granted) { Alert.alert('İzin Gerekli', 'Galeri izni verilmedi.'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 1 });
-          if (!result.canceled) await runOCR(result.assets[0].uri);
-        },
-      },
-      {
-        text: 'Dosya',
-        onPress: async () => {
-          const result = await DocumentPicker.getDocumentAsync({
-            type: ['image/*', 'application/pdf'],
-            copyToCacheDirectory: true,
-          });
-          if (!result.canceled) await runOCR(result.assets[0].uri);
-        },
-      },
-      { text: 'İptal', style: 'cancel' },
-    ]);
-  }
-
-  async function runOCR(uri: string) {
-    setCksImageUri(uri);
-    setCksLoading(true);
-    try {
-      const result = await extractCKS(uri);
-      setCksResult(result);
-    } catch {
-      Alert.alert('Hata', 'ÇKS belgesi okunamadı.');
-    } finally {
-      setCksLoading(false);
-    }
-  }
 
   if (!farmerId) {
     return (
@@ -108,20 +53,6 @@ export default function KrediAnaliziScreen() {
 
   return (
     <>
-    <Modal visible={cksModalVisible} animationType="slide" onRequestClose={() => setCksModalVisible(false)}>
-      <View style={styles.modalContainer}>
-        <TouchableOpacity style={styles.modalClose} onPress={() => setCksModalVisible(false)}>
-          <Text style={styles.modalCloseText}>✕</Text>
-        </TouchableOpacity>
-        {cksImageUri?.endsWith('.pdf') ? (
-          <View style={styles.modalPdfNote}>
-            <Text style={styles.modalPdfText}>Bu belge PDF olduğu için önizleme gösterilemiyor.</Text>
-          </View>
-        ) : (
-          <Image source={{ uri: cksImageUri ?? '' }} style={styles.modalImage} resizeMode="contain" />
-        )}
-      </View>
-    </Modal>
     <Modal
       visible={creditInfoVisible}
       transparent
@@ -153,6 +84,7 @@ export default function KrediAnaliziScreen() {
         </View>
       </View>
     </Modal>
+
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.name}>{farmer.full_name}</Text>
 
@@ -176,42 +108,6 @@ export default function KrediAnaliziScreen() {
                 : 'Bilgi yok'}
             </Text>
           </TouchableOpacity>
-
-          {/* ÇKS Yükləmə */}
-          <View style={styles.cksSection}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="document-attach-outline" size={15} color="#6b7280" />
-              <Text style={styles.cksSectionTitle}>ÇKS Belgesi</Text>
-            </View>
-            <TouchableOpacity style={styles.cksBtn} onPress={handleCKSUpload} disabled={cksLoading}>
-              {cksLoading
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <>
-                    <Ionicons name="camera-outline" size={16} color="#fff" />
-                    <Text style={styles.cksBtnText}>ÇKS Belgesi Yükle</Text>
-                  </>
-              }
-            </TouchableOpacity>
-            {cksResult && (
-              <View style={{ marginTop: 8 }}>
-                {cksResult.land_size_ha !== null
-                  ? <Text style={styles.cksHa}>OCR Arazi: {cksResult.land_size_ha.toFixed(4)} ha</Text>
-                  : <Text style={styles.cksWarn}>Arazi büyüklüğü okunamadı.</Text>
-                }
-                {cksResult.confidence < 0.6 && (
-                  <Text style={styles.cksWarn}>⚠ Sənəd aydın deyil, el ile kontrol edin.</Text>
-                )}
-                {cksResult.warning && (
-                  <Text style={styles.cksWarn}>{cksResult.warning}</Text>
-                )}
-                {cksImageUri && (
-                  <TouchableOpacity style={styles.viewBtn} onPress={() => setCksModalVisible(true)}>
-                    <Text style={styles.viewBtnText}>Belgemi Gör</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
 
           {s.feature_contributions && (
             <View style={styles.shapSection}>
@@ -287,30 +183,6 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 15, color: '#374151', fontWeight: '500' },
   rowLabelWrap: { flexDirection: 'row', alignItems: 'center' },
   rowValue: { fontSize: 15, color: '#1f2937', fontWeight: '700' },
-  cksSection: { marginTop: 4, marginBottom: 12 },
-  cksSectionTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
-  cksBtn: {
-    backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 8,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-  },
-  cksBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  cksHa: { fontSize: 14, fontWeight: '700', color: '#166534' },
-  cksWarn: { fontSize: 12, color: '#b45309', marginTop: 2 },
-  viewBtn: {
-    marginTop: 8, backgroundColor: '#6b7280', borderRadius: 8,
-    paddingVertical: 10, alignItems: 'center',
-  },
-  viewBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  modalContainer: { flex: 1, backgroundColor: '#000' },
-  modalClose: {
-    position: 'absolute', top: 48, right: 20, zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20,
-    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
-  },
-  modalCloseText: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  modalImage: { flex: 1, width: '100%' },
-  modalPdfNote: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  modalPdfText: { color: '#9ca3af', fontSize: 16, textAlign: 'center' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   shapSection: { marginTop: 8, marginBottom: 12 },
   shapTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginLeft: 5 },
@@ -341,4 +213,3 @@ const styles = StyleSheet.create({
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
-

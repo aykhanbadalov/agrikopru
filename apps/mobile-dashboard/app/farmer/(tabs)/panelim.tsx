@@ -14,7 +14,7 @@ import {
 import ScoreBadge from '../../../components/ScoreBadge';
 import ScoreChart from '../../../components/ScoreChart';
 import { ShapBar, FEATURE_LABELS } from '../../../components/ShapBar';
-import { Farmer, ScoreHistoryPoint, getScoreHistory } from '../../../services/api';
+import { Farmer, ScoreHistoryPoint, getScoreHistory, requestScore } from '../../../services/api';
 
 export default function PanelimScreen() {
   const [farmer, setFarmer] = useState<Farmer | null>(null);
@@ -22,9 +22,16 @@ export default function PanelimScreen() {
   const [creditInfoVisible, setCreditInfoVisible] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('currentFarmer').then((raw) => {
+    AsyncStorage.getItem('currentFarmer').then(async (raw) => {
       if (!raw) { router.replace('/farmer/login'); return; }
       const f: Farmer = JSON.parse(raw);
+      if (!f.latest_score) {
+        try {
+          const score = await requestScore(f.id);
+          f.latest_score = score;
+          await AsyncStorage.setItem('currentFarmer', JSON.stringify(f));
+        } catch {}
+      }
       setFarmer(f);
       getScoreHistory(f.id).then(setHistory).catch(() => {});
     });

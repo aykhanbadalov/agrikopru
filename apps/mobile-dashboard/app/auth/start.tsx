@@ -1,12 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function StartScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
-        <Ionicons name="leaf" size={72} color="#16a34a" />
+        <Image
+          source={require('../../assets/icon.png')}
+          style={{ width: 110, height: 110, borderRadius: 24 }}
+          resizeMode="contain"
+        />
         <Text style={styles.title}>AgriKöprü</Text>
         <Text style={styles.tagline}>Tarımsal Kredi Platformu</Text>
       </View>

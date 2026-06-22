@@ -165,6 +165,13 @@ export function authVerifyRegistration(
   });
 }
 
+export function requestScore(farmerId: string): Promise<ScoreResult> {
+  return apiFetch<ScoreResult>('/api/score', {
+    method: 'POST',
+    body: JSON.stringify({ farmer_id: farmerId }),
+  });
+}
+
 export function authResendOtp(phone: string, role: string): Promise<{ demoCode: string }> {
   return apiFetch<{ demoCode: string }>('/api/auth/resend-otp', {
     method: 'POST',

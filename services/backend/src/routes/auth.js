@@ -82,7 +82,7 @@ router.post('/register', upload.single('cks_document'), async (req, res, next) =
         const storagePath = `${farmer.id}/cks.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('cks-documents')
-          .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+          .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
         if (!upErr) {
           await db.query(
             'UPDATE farmers SET cks_document_path = $1 WHERE id = $2',

@@ -130,7 +130,7 @@ export default function RegisterFarmerScreen() {
         cooperative_member: String(cooperative),
         national_id: nationalId.trim(),
         farming_history_years: farmingYears,
-        tarsim_history_score: tarsimScore,
+        tarsim_history_score: String(parseFloat(tarsimScore) / 100),
         fertilizer_purchases: fertilizerPurchases,
         climate_risk_score: climateRisk,
         land_size_ha: landSizeHa,

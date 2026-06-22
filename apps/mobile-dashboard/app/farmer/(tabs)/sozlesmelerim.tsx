@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -33,14 +33,16 @@ export default function SozlesmelerimScreen() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!farmerId) return;
-    setLoading(true);
-    getContracts({ farmer_id: farmerId })
-      .then(setContracts)
-      .catch(() => setError('Sözleşmeler yüklenemedi.'))
-      .finally(() => setLoading(false));
-  }, [farmerId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!farmerId) return;
+      setLoading(true);
+      getContracts({ farmer_id: farmerId })
+        .then(setContracts)
+        .catch(() => setError('Sözleşmeler yüklenemedi.'))
+        .finally(() => setLoading(false));
+    }, [farmerId])
+  );
 
   function handleConfirm(contract: Contract) {
     setSelectedContract(null);
