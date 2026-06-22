@@ -5,42 +5,75 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a1a2e;
+  background: radial-gradient(ellipse at 50% 40%, #1a1a2e 0%, #0a0a12 100%);
   font-family: sans-serif;
 }
 
+/* Telefon gövdəsi — antrasit + xrom kənar çərçivə */
 .phone {
   width: 280px;
-  background: #2d2d2d;
+  position: relative;
+  background:
+    linear-gradient(to bottom, #252527, #1a1a1c) padding-box,
+    linear-gradient(160deg, #8a8a8a 0%, #3a3a3a 25%, #aaa 50%, #404040 75%, #888 100%) border-box;
+  border: 2px solid transparent;
   border-radius: 32px;
   padding: 20px 16px 28px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.04),
+    0 24px 70px rgba(0,0,0,0.85),
+    0 10px 30px rgba(0,0,0,0.6),
+    0 4px 8px rgba(0,0,0,0.4);
   user-select: none;
 }
 
-/* SIM nömrəsi */
+/* SIM nömrəsi — solğun yaşıl monospace */
 .sim-bar {
   text-align: center;
+  font-family: 'Courier New', monospace;
   font-size: 11px;
-  color: #888;
+  color: rgba(74, 222, 128, 0.55);
   margin-bottom: 10px;
   letter-spacing: 1px;
 }
 .sim-bar span {
-  color: #aaa;
+  color: rgba(74, 222, 128, 0.7);
   font-weight: bold;
 }
 
-/* Ekran */
+/* Ekran — LCD Nokia estetikası, şüşə parıltısı ilə */
 .screen {
-  background: #0d1b0d;
+  background: #091409;
   border-radius: 8px;
   padding: 12px 10px;
   min-height: 160px;
   margin-bottom: 10px;
-  border: 1px solid #1a3a1a;
+  border: 1px solid #0f2a0f;
   position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 3px 10px rgba(0,0,0,0.9),
+    inset 0 0 6px rgba(0,0,0,0.6),
+    0 1px 0 rgba(255,255,255,0.04);
 }
+
+/* Şüşə glare overlay */
+.screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.045) 0%,
+    rgba(255,255,255,0.01) 60%,
+    transparent 100%
+  );
+  border-radius: 8px 8px 0 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .screen-text {
   font-family: 'Courier New', monospace;
   font-size: 13px;
@@ -49,10 +82,13 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
   min-height: 120px;
+  position: relative;
+  z-index: 2;
 }
 .screen-text.loading {
   color: #007020;
 }
+
 .screen-indicator {
   position: absolute;
   top: 6px;
@@ -61,12 +97,14 @@ body {
   height: 6px;
   border-radius: 50%;
   background: #00e040;
+  box-shadow: 0 0 5px rgba(0, 224, 64, 0.8);
+  z-index: 2;
 }
-.screen-indicator.off { background: #333; }
+.screen-indicator.off { background: #2a2a2a; box-shadow: none; }
 
 /* Yığım çubuğu */
 .dial-bar {
-  background: #111;
+  background: #0a0a0a;
   border-radius: 6px;
   padding: 6px 10px;
   font-family: 'Courier New', monospace;
@@ -76,69 +114,91 @@ body {
   text-align: right;
   min-height: 32px;
   margin-bottom: 12px;
-  border: 1px solid #222;
+  border: 1px solid #1a1a1a;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.7);
 }
 
 /* Klaviatura */
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 12px;
 }
+
+/* Düymə — plastik gradient + 3D kölgə */
 .key {
-  background: #3a3a3a;
+  background: linear-gradient(to bottom, #484848 0%, #2d2d2d 100%);
   border: none;
   border-radius: 8px;
   padding: 12px 0;
-  color: #ddd;
+  color: #e2e2e2;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  transition: background .1s, transform .05s;
-  box-shadow: 0 3px 0 #1a1a1a;
+  transition: transform .08s ease, box-shadow .08s ease;
+  box-shadow:
+    0 4px 0 #121212,
+    0 5px 8px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .key:active, .key.pressed {
-  background: #4a4a4a;
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #1a1a1a;
+  transform: scale(0.95) translateY(2px);
+  box-shadow:
+    0 1px 0 #121212,
+    0 2px 3px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(0,0,0,0.15);
 }
 .key sub {
   display: block;
   font-size: 8px;
-  color: #888;
+  color: #6a6a6a;
   font-weight: normal;
   margin-top: 1px;
 }
-.key.key-star, .key.key-hash { color: #aaa; font-size: 18px; }
+.key.key-star, .key.key-hash { color: #bbb; font-size: 18px; }
 
 /* Zəng / Bitir düymələri */
 .action-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
+
 .btn-call {
-  background: #1a6e1a;
+  background: linear-gradient(to bottom, #22c55e, #15803d);
   border: none;
   border-radius: 20px;
   padding: 11px 0;
   color: #fff;
   font-size: 20px;
   cursor: pointer;
-  box-shadow: 0 3px 0 #0d3d0d;
-  transition: background .1s;
+  transition: transform .08s ease, box-shadow .08s ease;
+  box-shadow:
+    0 4px 0 #0f4f27,
+    0 5px 8px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.2);
 }
-.btn-call:active { background: #155515; transform: translateY(2px); box-shadow: none; }
+.btn-call:active {
+  transform: scale(0.95) translateY(2px);
+  box-shadow: 0 1px 0 #0f4f27, inset 0 1px 0 rgba(0,0,0,0.15);
+}
+
 .btn-end {
-  background: #8b1a1a;
+  background: linear-gradient(to bottom, #ef4444, #991b1b);
   border: none;
   border-radius: 20px;
   padding: 11px 0;
   color: #fff;
   font-size: 20px;
   cursor: pointer;
-  box-shadow: 0 3px 0 #4d0d0d;
-  transition: background .1s;
+  transition: transform .08s ease, box-shadow .08s ease;
+  box-shadow:
+    0 4px 0 #5a0e0e,
+    0 5px 8px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.2);
 }
-.btn-end:active { background: #6b1515; transform: translateY(2px); box-shadow: none; }
+.btn-end:active {
+  transform: scale(0.95) translateY(2px);
+  box-shadow: 0 1px 0 #5a0e0e, inset 0 1px 0 rgba(0,0,0,0.15);
+}

@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { generateOtp, verifyOtp } = require('../otp');
 
@@ -78,18 +79,31 @@ router.post('/:id/send-confirm-otp', async (req, res, next) => {
 });
 
 router.post('/:id/confirm', async (req, res, next) => {
-  const { farmer_id, code } = req.body;
+  const { farmer_id, pin, code } = req.body;
 
   try {
-    const { rows: farmers } = await db.query('SELECT phone FROM farmers WHERE id = $1', [farmer_id]);
-    if (!farmers.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
+    // Mobil app OTP yolu (code göndərilirsə)
+    if (code !== undefined) {
+      const { rows: farmers } = await db.query('SELECT phone FROM farmers WHERE id = $1', [farmer_id]);
+      if (!farmers.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
 
-    const otpResult = verifyOtp(farmers[0].phone, 'confirm', code);
-    if (!otpResult.ok) {
-      return res.status(otpResult.lockedUntil ? 429 : 403).json({
-        error: otpResult.error,
-        ...(otpResult.lockedUntil && { lockedUntil: otpResult.lockedUntil }),
-      });
+      const otpResult = verifyOtp(farmers[0].phone, 'confirm', code);
+      if (!otpResult.ok) {
+        return res.status(otpResult.lockedUntil ? 429 : 403).json({
+          error: otpResult.error,
+          ...(otpResult.lockedUntil && { lockedUntil: otpResult.lockedUntil }),
+        });
+      }
+    } else {
+      // USSD PIN yolu (pin göndərilirsə)
+      if (!pin) return res.status(400).json({ error: 'pin veya code zorunludur.' });
+
+      const { rows: farmers } = await db.query('SELECT pin_hash FROM farmers WHERE id = $1', [farmer_id]);
+      if (!farmers.length) return res.status(404).json({ error: 'Çiftçi bulunamadı.' });
+      if (!farmers[0].pin_hash) return res.status(403).json({ error: 'PIN tanımlanmamış.' });
+
+      const ok = await bcrypt.compare(String(pin), farmers[0].pin_hash);
+      if (!ok) return res.status(403).json({ error: 'Yanlış PIN.' });
     }
 
     const { rows, rowCount } = await db.query(
